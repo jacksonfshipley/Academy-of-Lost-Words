@@ -2,900 +2,779 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Academy of Lost Words</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Lora:ital,wght@0,600;1,400&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Academy of Lost Words</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Lora:ital,wght@1,400&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#060a06;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;font-family:'DM Sans',sans-serif;overflow-x:hidden}
+#wrap{position:relative;width:640px;max-width:100vw}
+canvas{display:block;width:100%;image-rendering:pixelated;image-rendering:crisp-edges;cursor:default}
 
-:root{
-  --ch-a: #4a9e5c;
-  --ch-b: #1a3a2a;
-  --ch-glow: rgba(74,158,92,0.25);
-  --text: #e8e0d0;
-  --muted: #8a8070;
-  --card: rgba(8,6,4,0.72);
-  --border: rgba(255,255,255,0.08);
-}
+/* HUD */
+#hud{position:absolute;top:8px;left:0;right:0;display:flex;justify-content:space-between;padding:0 8px;pointer-events:none;gap:6px;z-index:10}
+.hpill{background:rgba(0,0,0,.82);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:5px 11px;font-family:'Cinzel',serif;font-size:.78rem;color:#e8e0d0;backdrop-filter:blur(4px);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.hpill b{color:#d4a840}
+#zone-name{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:20;opacity:0;transition:opacity .4s}
+#zone-name.vis{opacity:1}
+.zn-title{font-family:'Cinzel',serif;font-size:clamp(1.4rem,4vw,2.2rem);font-weight:900;color:#e8d090;text-shadow:0 0 30px rgba(232,168,48,.8);letter-spacing:3px}
+.zn-sub{font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:rgba(232,224,208,.5);margin-top:4px}
+#eprompt{position:absolute;bottom:72px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.88);border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:5px 15px;font-size:.78rem;font-weight:700;color:#e8e0d0;letter-spacing:1px;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;z-index:10}
+#eprompt.vis{opacity:1}
 
-html{scroll-behavior:smooth}
-body{
-  min-height:100vh;
-  font-family:'DM Sans',sans-serif;
-  color:var(--text);
-  background:#0a0d08;
-  transition:background 1.2s ease;
-  position:relative;
-  overflow-x:hidden;
-}
+/* D-Pad */
+#dpad{position:absolute;bottom:6px;right:6px;display:grid;grid-template-columns:42px 42px 42px;grid-template-rows:42px 42px 42px;gap:2px;z-index:10}
+.db{background:rgba(0,0,0,.65);border:1.5px solid rgba(255,255,255,.12);border-radius:7px;color:rgba(255,255,255,.65);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;user-select:none;touch-action:manipulation;transition:background .08s}
+.db:active,.db.on{background:rgba(255,255,255,.18)}
+#dpad-e{position:absolute;bottom:10px;left:10px;width:58px;height:58px;background:rgba(212,168,64,.18);border:2px solid rgba(212,168,64,.4);border-radius:50%;color:#d4a840;font-size:.68rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;user-select:none;touch-action:manipulation;z-index:10}
+#dpad-e:active{background:rgba(212,168,64,.32)}
 
-/* ── Atmospheric background layers ── */
-body::before{
-  content:'';position:fixed;inset:0;
-  background:
-    radial-gradient(ellipse 60% 40% at 20% 10%, var(--ch-glow) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 30% at 80% 90%, var(--ch-glow) 0%, transparent 70%);
-  transition:all 1.2s ease;
-  pointer-events:none;z-index:0;
-}
-/* Subtle scanline texture */
-body::after{
-  content:'';position:fixed;inset:0;
-  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);
-  pointer-events:none;z-index:0;
-}
+/* Question modal */
+#qmodal{position:absolute;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:10px;z-index:100;opacity:0;pointer-events:none;transition:opacity .25s}
+#qmodal.open{opacity:1;pointer-events:auto}
+.qcard{background:#100e0a;border:1px solid rgba(212,168,64,.22);border-radius:18px;padding:22px 20px;max-width:540px;width:100%;max-height:88vh;overflow-y:auto}
+.qcard-loc{font-family:'Cinzel',serif;font-size:.66rem;letter-spacing:3px;text-transform:uppercase;color:#d4a840;margin-bottom:10px}
+.qcard-ctx{font-family:'Lora',serif;font-style:italic;font-size:.83rem;line-height:1.6;color:rgba(232,224,208,.6);margin-bottom:11px}
+.qcard-pass{font-family:'Lora',serif;font-size:.92rem;line-height:1.75;font-weight:600;border-left:3px solid #d4a840;padding:10px 13px;background:rgba(212,168,64,.05);border-radius:0 9px 9px 0;margin-bottom:11px;color:#e8e0d0}
+.qcard-q{font-size:.86rem;font-weight:700;margin-bottom:11px;color:#e8e0d0;line-height:1.4}
+.qopts{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+@media(max-width:400px){.qopts{grid-template-columns:1fr}}
+.qo{background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.09);border-radius:9px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:700;color:#e8e0d0;padding:10px 12px;text-align:left;display:flex;align-items:center;gap:8px;transition:border-color .12s,background .12s}
+.qo:hover:not(:disabled){border-color:#d4a840;background:rgba(212,168,64,.07)}
+.qo .ql{width:21px;height:21px;border-radius:5px;background:rgba(255,255,255,.08);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:.72rem}
+.qo.c{border-color:#4dbb7a;background:rgba(77,187,122,.09)}.qo.c .ql{background:#4dbb7a;color:#000}
+.qo.w{border-color:#c45050;background:rgba(196,80,80,.07);opacity:.55}.qo.w .ql{background:#c45050;color:#fff}
+.qfb{margin-top:11px;border-radius:9px;padding:11px 14px;display:none;font-size:.8rem;font-weight:600;line-height:1.5}
+.qfb.ok{display:block;background:rgba(77,187,122,.07);border:1px solid rgba(77,187,122,.22)}
+.qfb.bad{display:block;background:rgba(196,80,80,.06);border:1px solid rgba(196,80,80,.18)}
+.qfb-h{font-family:'Cinzel',serif;font-size:.92rem;letter-spacing:1px;margin-bottom:3px}
+.qfb-h.ok{color:#4dbb7a}.qfb-h.bad{color:#c45050}
+.qfb-b{color:rgba(232,224,208,.82)}.qfb-b strong{color:#d4a840}
+.qnext{width:100%;margin-top:10px;padding:11px;background:transparent;border:1.5px solid #d4a840;border-radius:9px;color:#d4a840;cursor:pointer;font-family:'Cinzel',serif;font-size:.78rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:none;transition:all .18s}
+.qnext:hover{background:#d4a840;color:#000}
 
-/* floating motes */
-.mote{
-  position:fixed;border-radius:50%;pointer-events:none;z-index:1;
-  background:var(--ch-a);
-  animation:mote-drift var(--d,8s) ease-in-out var(--delay,0s) infinite alternate;
-  opacity:0;
-}
-@keyframes mote-drift{
-  0%{opacity:0;transform:translate(0,0) scale(1)}
-  20%{opacity:0.5}
-  80%{opacity:0.3}
-  100%{opacity:0;transform:translate(var(--tx,20px),var(--ty,-40px)) scale(1.4)}
-}
+/* Start */
+#start{position:absolute;inset:0;background:radial-gradient(ellipse at center,#141e0a 0%,#060a06 70%);display:flex;align-items:center;justify-content:center;flex-direction:column;padding:24px;text-align:center;z-index:200}
+.sl{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(1.6rem,5vw,2.8rem);letter-spacing:3px;color:#e8d090;line-height:1.1;margin-bottom:6px}
+.ss{font-size:.68rem;letter-spacing:3px;text-transform:uppercase;color:rgba(232,224,208,.4);margin-bottom:20px}
+.slore{font-family:'Lora',serif;font-style:italic;font-size:.86rem;line-height:1.7;color:rgba(232,224,208,.68);max-width:440px;border-left:2px solid #d4a840;padding-left:13px;margin-bottom:18px;text-align:left}
+.sctrl{font-size:.7rem;color:rgba(232,224,208,.35);margin-bottom:16px;letter-spacing:1px}
+.nlbl{display:block;font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:rgba(232,224,208,.45);margin-bottom:5px}
+.nin{width:100%;max-width:280px;padding:11px 13px;background:rgba(255,255,255,.05);border:1.5px solid rgba(212,168,64,.28);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;color:#e8e0d0;outline:none;margin-bottom:5px}
+.nin:focus{border-color:#d4a840}
+.nerr{color:#c45050;font-size:.75rem;font-weight:700;display:none;margin-bottom:7px}
+.sbtn{background:#d4a840;color:#000;border:none;border-radius:9px;cursor:pointer;font-family:'Cinzel',serif;font-size:.88rem;font-weight:700;letter-spacing:3px;padding:13px 38px;transition:opacity .18s,transform .12s}
+.sbtn:hover{opacity:.9;transform:translateY(-2px)}
 
-.wrap{
-  position:relative;z-index:2;
-  max-width:720px;margin:0 auto;
-  padding:24px 16px 64px;
-}
+/* End */
+#end{position:absolute;inset:0;background:rgba(0,0,0,.93);display:none;align-items:center;justify-content:center;flex-direction:column;padding:16px;text-align:center;z-index:200;overflow-y:auto}
+#end.show{display:flex}
+.ecard{background:#100e0a;border:1px solid rgba(212,168,64,.18);border-radius:18px;padding:24px 20px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto}
+.esym{font-size:3.2rem;display:block;margin-bottom:8px}
+.etitle{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(1.6rem,5vw,2.6rem);letter-spacing:3px;color:#e8d090;margin-bottom:4px}
+.epts{font-family:'Cinzel',serif;font-size:clamp(2.8rem,8vw,4rem);color:#d4a840;letter-spacing:2px;line-height:1}
+.eptsl{color:rgba(232,224,208,.38);font-size:.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:13px}
+.estory{font-family:'Lora',serif;font-style:italic;font-size:.84rem;line-height:1.7;color:rgba(232,224,208,.72);border-top:1px solid rgba(255,255,255,.07);padding-top:12px;margin-bottom:14px}
+.mhead{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:3px;text-transform:uppercase;color:#c45050;margin-bottom:7px}
+.mi{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:7px;padding:8px 12px;margin-bottom:5px;font-size:.78rem;text-align:left}
+.mi-q{font-style:italic;color:rgba(232,224,208,.45);margin-bottom:2px;font-family:'Lora',serif}
+.mi-a{font-weight:800;color:#4dbb7a}
+.mi-t{color:rgba(232,224,208,.3);font-size:.68rem;text-transform:uppercase;letter-spacing:1px}
+.ereplay{background:#d4a840;color:#000;border:none;border-radius:9px;cursor:pointer;font-family:'Cinzel',serif;font-size:.84rem;font-weight:700;letter-spacing:2px;padding:13px 32px;margin-top:13px;width:100%;transition:opacity .18s}
+.ereplay:hover{opacity:.88}
+.elb{background:transparent;color:#d4a840;border:1.5px solid rgba(212,168,64,.35);border-radius:9px;cursor:pointer;font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:2px;padding:10px 20px;margin-top:7px;width:100%;transition:all .18s}
+.elb:hover{background:rgba(212,168,64,.08)}
 
-/* ── TABS ── */
-.tabs{
-  display:flex;gap:0;background:rgba(0,0,0,0.5);
-  border:1px solid var(--border);border-radius:14px;
-  padding:4px;margin-bottom:28px;backdrop-filter:blur(8px);
-}
-.tab{
-  flex:1;border:none;background:transparent;cursor:pointer;
-  font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:700;
-  letter-spacing:1.5px;text-transform:uppercase;
-  color:var(--muted);padding:10px 8px;border-radius:10px;
-  transition:all .2s;
-}
-.tab.active{background:var(--ch-a);color:#000;}
-.tab:hover:not(.active){color:var(--text);}
-
-/* ── LOGO / HEADER ── */
-.game-logo{
-  text-align:center;margin-bottom:32px;
-  animation:rise .7s ease both;
-}
-.game-logo h1{
-  font-family:'Cinzel',serif;font-weight:900;
-  font-size:clamp(1.6rem,5.5vw,2.8rem);
-  letter-spacing:4px;line-height:1.1;
-  background:linear-gradient(180deg, #f0e8c8 0%, var(--ch-a) 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  transition:all 1s ease;
-}
-.game-logo p{
-  font-size:.72rem;letter-spacing:3px;text-transform:uppercase;
-  color:var(--muted);margin-top:6px;
-}
-
-/* ── CARDS ── */
-.card{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:20px;
-  backdrop-filter:blur(12px);
-  box-shadow:0 8px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03);
-  padding:32px 28px;
-  animation:rise .4s ease both;
-}
-@media(max-width:480px){.card{padding:22px 16px}}
-
-/* ── INTRO SCREEN ── */
-.intro-book{font-size:.8rem;letter-spacing:3px;text-transform:uppercase;color:var(--ch-a);margin-bottom:16px;font-weight:700;}
-.intro-title{font-family:'Cinzel',serif;font-size:clamp(1.4rem,4vw,2rem);font-weight:700;letter-spacing:2px;margin-bottom:16px;line-height:1.3;}
-.intro-lore{
-  font-family:'Lora',serif;font-style:italic;
-  font-size:.95rem;line-height:1.75;color:rgba(232,224,208,.8);
-  border-left:2px solid var(--ch-a);padding-left:16px;margin-bottom:24px;
-}
-.intro-terms{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:24px;}
-.term-badge{
-  font-size:.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
-  padding:4px 12px;border-radius:99px;border:1.5px solid;
-}
-.name-lbl{display:block;font-size:.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
-.name-in{
-  width:100%;padding:13px 16px;border:1.5px solid var(--border);
-  border-radius:12px;background:rgba(255,255,255,0.05);
-  font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:600;
-  color:var(--text);outline:none;transition:border-color .2s;
-  margin-bottom:6px;
-}
-.name-in:focus{border-color:var(--ch-a);}
-.name-err{color:#e87070;font-size:.78rem;font-weight:700;display:none;margin-bottom:10px;}
-
-.begin-btn{
-  width:100%;padding:16px;
-  background:transparent;
-  border:2px solid var(--ch-a);border-radius:12px;cursor:pointer;
-  font-family:'Cinzel',serif;font-size:1rem;font-weight:700;letter-spacing:3px;
-  color:var(--ch-a);text-transform:uppercase;
-  transition:all .25s;margin-top:6px;
-  position:relative;overflow:hidden;
-}
-.begin-btn::before{
-  content:'';position:absolute;inset:0;background:var(--ch-a);
-  transform:scaleX(0);transform-origin:left;transition:transform .3s ease;z-index:0;
-}
-.begin-btn:hover::before{transform:scaleX(1);}
-.begin-btn:hover{color:#000;}
-.begin-btn span{position:relative;z-index:1;}
-
-/* ── CHAPTER INTRO ── */
-.ch-intro{text-align:center;}
-.ch-number{
-  font-family:'Cinzel',serif;font-size:.75rem;letter-spacing:4px;
-  text-transform:uppercase;color:var(--ch-a);margin-bottom:8px;font-weight:700;
-}
-.ch-title{
-  font-family:'Cinzel',serif;font-weight:900;
-  font-size:clamp(1.8rem,6vw,3rem);letter-spacing:3px;
-  margin-bottom:4px;line-height:1.1;
-}
-.ch-divider{
-  width:60px;height:2px;background:var(--ch-a);
-  margin:16px auto;border-radius:1px;
-}
-.ch-symbol{font-size:3rem;display:block;margin-bottom:12px;}
-.ch-lore{
-  font-family:'Lora',serif;font-style:italic;font-size:.95rem;
-  line-height:1.75;color:rgba(232,224,208,.85);
-  max-width:520px;margin:0 auto 28px;
-}
-.ch-continue{
-  background:var(--ch-a);border:none;border-radius:12px;cursor:pointer;
-  font-family:'Cinzel',serif;font-size:.85rem;font-weight:700;letter-spacing:3px;
-  text-transform:uppercase;padding:14px 36px;color:#000;
-  transition:opacity .2s,transform .15s;
-}
-.ch-continue:hover{opacity:.88;transform:translateY(-2px);}
-
-/* ── HUD ── */
-.hud{
-  display:flex;justify-content:space-between;align-items:center;
-  background:rgba(0,0,0,0.6);border:1px solid var(--border);
-  border-radius:12px;padding:10px 20px;margin-bottom:12px;
-  backdrop-filter:blur(8px);
-}
-.hud-item{text-align:center;}
-.hud-lbl{font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:1px;}
-.hud-val{font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;transition:color .4s;}
-.hud-val.gold{color:#d4a840;}
-.hud-val.glow{color:var(--ch-a);}
-.prog-bar{height:4px;background:rgba(255,255,255,0.08);border-radius:99px;margin-bottom:20px;overflow:hidden;}
-.prog-fill{height:100%;background:var(--ch-a);border-radius:99px;transition:width .5s ease;}
-
-/* ── SCENE CARD ── */
-.scene-meta{display:flex;align-items:center;gap:8px;margin-bottom:18px;}
-.scene-badge{
-  font-size:.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;
-  padding:4px 12px;border-radius:99px;border:1.5px solid;
-}
-.scene-num{font-size:.72rem;color:var(--muted);font-weight:600;margin-left:auto;}
-.scene-context{
-  font-family:'Lora',serif;font-style:italic;font-size:.93rem;
-  line-height:1.75;color:rgba(232,224,208,.75);margin-bottom:16px;
-}
-.scene-passage{
-  font-family:'Lora',serif;font-size:1rem;line-height:1.8;
-  border-left:3px solid var(--ch-a);
-  padding:14px 18px;background:rgba(255,255,255,0.04);
-  border-radius:0 12px 12px 0;margin-bottom:16px;
-  color:var(--text);font-weight:600;
-}
-.scene-q{font-size:.93rem;font-weight:700;margin-bottom:14px;line-height:1.5;}
-
-/* ── ANSWERS ── */
-.ans-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
-@media(max-width:420px){.ans-grid{grid-template-columns:1fr;}}
-.ans{
-  background:rgba(255,255,255,0.04);border:1.5px solid var(--border);
-  border-radius:12px;cursor:pointer;
-  font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:700;
-  color:var(--text);padding:13px 15px;text-align:left;
-  display:flex;align-items:center;gap:10px;
-  transition:border-color .15s,background .15s,transform .1s;
-}
-.ans:hover:not(:disabled){border-color:var(--ch-a);background:rgba(255,255,255,0.07);transform:translateY(-2px);}
-.ans:active:not(:disabled){transform:scale(.98);}
-.ans .ltr{
-  width:24px;height:24px;border-radius:6px;
-  background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;
-  font-family:'Cinzel',serif;font-size:.78rem;font-weight:700;flex-shrink:0;
-  transition:background .2s,color .2s;
-}
-.ans.correct{border-color:#4dbb7a;background:rgba(77,187,122,.1);}
-.ans.correct .ltr{background:#4dbb7a;color:#000;}
-.ans.wrong{border-color:#c45050;background:rgba(196,80,80,.08);opacity:.6;}
-.ans.wrong .ltr{background:#c45050;color:#fff;}
-
-/* ── STORY RESULT ── */
-.story-result{
-  margin-top:18px;border-radius:14px;padding:18px 20px;
-  display:none;animation:rise .4s ease both;
-  border:1px solid var(--border);
-}
-.story-result.show-ok{display:block;background:rgba(77,187,122,.08);border-color:rgba(77,187,122,.25);}
-.story-result.show-bad{display:block;background:rgba(196,80,80,.07);border-color:rgba(196,80,80,.2);}
-.sr-story{
-  font-family:'Lora',serif;font-style:italic;font-size:.9rem;
-  line-height:1.7;margin-bottom:10px;
-}
-.sr-story.ok{color:#7ddd9a;}
-.sr-story.bad{color:#e0908a;}
-.sr-exp{
-  font-size:.83rem;font-weight:600;line-height:1.6;
-  color:rgba(232,224,208,.85);
-  border-top:1px solid var(--border);padding-top:10px;
-}
-.sr-exp strong{color:var(--ch-a);}
-
-.continue-btn{
-  display:none;width:100%;margin-top:14px;
-  background:transparent;border:1.5px solid var(--ch-a);
-  border-radius:12px;color:var(--ch-a);cursor:pointer;
-  font-family:'Cinzel',serif;font-size:.85rem;font-weight:700;
-  letter-spacing:2px;text-transform:uppercase;padding:14px;
-  transition:all .2s;
-}
-.continue-btn:hover{background:var(--ch-a);color:#000;}
-
-/* ── ENDING ── */
-#s-ending{display:none;animation:rise .5s ease both;}
-.ending-badge{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:4px;text-transform:uppercase;color:var(--ch-a);margin-bottom:10px;display:block;}
-.ending-symbol{font-size:4rem;display:block;text-align:center;margin-bottom:12px;}
-.ending-title{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(1.8rem,6vw,3rem);letter-spacing:3px;text-align:center;margin-bottom:6px;}
-.ending-pts{font-family:'Cinzel',serif;font-size:clamp(3rem,9vw,5rem);color:#d4a840;letter-spacing:2px;text-align:center;line-height:1;}
-.ending-pts-lbl{text-align:center;color:var(--muted);font-size:.8rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;}
-.ending-story{
-  font-family:'Lora',serif;font-style:italic;font-size:.95rem;
-  line-height:1.75;color:rgba(232,224,208,.85);
-  border-top:1px solid var(--border);padding-top:16px;margin-bottom:20px;
-}
-.missed-wrap{margin-top:4px;margin-bottom:20px;}
-.missed-head{font-family:'Cinzel',serif;font-size:.8rem;letter-spacing:3px;text-transform:uppercase;color:#c45050;margin-bottom:10px;}
-.missed-item{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:7px;font-size:.82rem;}
-.missed-q{font-style:italic;color:var(--muted);margin-bottom:3px;font-family:'Lora',serif;}
-.missed-ans{color:#4dbb7a;font-weight:800;}
-.missed-t{color:var(--muted);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
-.replay-btn{
-  width:100%;padding:16px;background:var(--ch-a);border:none;
-  border-radius:12px;cursor:pointer;
-  font-family:'Cinzel',serif;font-size:.9rem;font-weight:700;letter-spacing:3px;
-  text-transform:uppercase;color:#000;margin-top:4px;
-  transition:opacity .2s,transform .15s;
-}
-.replay-btn:hover{opacity:.88;transform:translateY(-2px);}
-
-/* ── LEADERBOARD ── */
-#panel-lb{display:none;}
-.lb-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
-.lb-title{font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;letter-spacing:3px;}
-.lb-reload{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:7px 13px;font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:700;color:var(--muted);transition:all .2s;}
-.lb-reload:hover{background:var(--ch-a);color:#000;border-color:var(--ch-a);}
-.lb-row{
-  display:flex;align-items:center;gap:12px;
-  padding:12px 15px;border-radius:12px;margin-bottom:8px;
-  background:rgba(255,255,255,.04);border:1px solid var(--border);
-  animation:rise .3s ease both;
-}
-.lb-row.r1{background:rgba(212,168,64,.12);border-color:rgba(212,168,64,.3);}
-.lb-row.r2{background:rgba(180,180,180,.08);border-color:rgba(180,180,180,.2);}
-.lb-row.r3{background:rgba(180,120,60,.08);border-color:rgba(180,120,60,.2);}
-.lb-row.me{border-color:var(--ch-a);}
-.lb-rank{font-family:'Cinzel',serif;font-size:1.1rem;width:24px;text-align:center;color:var(--muted);flex-shrink:0;}
-.lb-row.r1 .lb-rank{color:#d4a840;}
-.lb-row.r2 .lb-rank{color:#aaa;}
-.lb-row.r3 .lb-rank{color:#c07840;}
-.lb-medal{font-size:1.2rem;flex-shrink:0;}
-.lb-name{flex:1;font-weight:700;font-size:.9rem;}
-.you-tag{font-size:.62rem;background:var(--ch-a);color:#000;font-weight:800;padding:2px 6px;border-radius:4px;margin-left:6px;letter-spacing:1px;text-transform:uppercase;}
-.lb-score{font-family:'Cinzel',serif;font-size:1.25rem;font-weight:700;color:#d4a840;}
-.lb-pts-s{display:block;font-size:.6rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;text-align:right;}
-.lb-empty{text-align:center;color:var(--muted);padding:40px 0;font-size:.9rem;}
-
-/* ── CONFETTI ── */
-.confetti-bit{position:fixed;pointer-events:none;z-index:9999;animation:cfall linear forwards;}
-@keyframes cfall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(105vh) rotate(700deg);opacity:0}}
-
-/* ── ANIMATIONS ── */
-@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
-@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
-@keyframes glow-pulse{0%,100%{box-shadow:0 0 0 0 var(--ch-glow)}50%{box-shadow:0 0 20px 6px var(--ch-glow)}}
-
-.do-shake{animation:shake .4s ease;}
-.do-pulse{animation:glow-pulse .6s ease;}
+/* Leaderboard */
+#lb{position:absolute;inset:0;background:rgba(0,0,0,.96);display:none;align-items:center;justify-content:center;padding:16px;z-index:300;overflow-y:auto}
+#lb.show{display:flex}
+.lbcard{background:#100e0a;border:1px solid rgba(212,168,64,.18);border-radius:18px;padding:24px 20px;max-width:460px;width:100%;max-height:90vh;overflow-y:auto}
+.lbtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.lbtitle{font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;letter-spacing:3px;color:#e8d090}
+.lbclose{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:7px;cursor:pointer;padding:5px 11px;font-family:'DM Sans',sans-serif;font-size:.76rem;font-weight:700;color:rgba(232,224,208,.55);transition:all .18s}
+.lbclose:hover{background:rgba(255,255,255,.12)}
+.lbr{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;margin-bottom:5px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05)}
+.lbr.r1{background:rgba(212,168,64,.09);border-color:rgba(212,168,64,.22)}
+.lbr.r2{background:rgba(180,180,180,.05);border-color:rgba(180,180,180,.12)}
+.lbr.r3{background:rgba(180,100,40,.06);border-color:rgba(180,100,40,.14)}
+.lbr.me{border-color:rgba(77,187,122,.35)}
+.lbrank{font-family:'Cinzel',serif;font-size:.95rem;width:20px;text-align:center;color:rgba(232,224,208,.35);flex-shrink:0}
+.lbr.r1 .lbrank{color:#d4a840}.lbr.r2 .lbrank{color:#aaa}.lbr.r3 .lbrank{color:#c07840}
+.lbmedal{font-size:1rem;flex-shrink:0}
+.lbname{flex:1;font-weight:700;font-size:.85rem;color:#e8e0d0}
+.ytag{font-size:.58rem;background:#4dbb7a;color:#000;font-weight:800;padding:1px 5px;border-radius:3px;margin-left:4px;letter-spacing:1px;text-transform:uppercase}
+.lbscore{font-family:'Cinzel',serif;font-size:1.15rem;font-weight:700;color:#d4a840}
+.lbempty{text-align:center;color:rgba(232,224,208,.38);padding:28px 0;font-size:.86rem}
 </style>
 </head>
 <body>
-
-<div class="wrap">
-
-  <!-- LOGO (always visible) -->
-  <div class="game-logo" id="logo">
-    <h1>The Academy<br>of Lost Words</h1>
-    <p>An 8th Grade Figurative Language Adventure</p>
+<div id="wrap">
+  <canvas id="cv" width="640" height="448"></canvas>
+  <div id="hud">
+    <div class="hpill">⚔️ <b id="h-score">0</b> pts</div>
+    <div class="hpill">🔥 Streak <b id="h-streak">0</b></div>
+    <div class="hpill">📜 <b id="h-prog">0</b>/15</div>
   </div>
+  <div id="zone-name"><div class="zn-title" id="zn-t"></div><div class="zn-sub" id="zn-s"></div></div>
+  <div id="eprompt">⚡ Press E to inspect</div>
 
-  <!-- TABS -->
-  <div class="tabs" id="tabs">
-    <button class="tab active" id="tab-quest" onclick="switchTab('quest')">⚔️ &nbsp;Quest</button>
-    <button class="tab" id="tab-lb" onclick="switchTab('lb')">🏆 &nbsp;Leaderboard</button>
+  <!-- D-Pad -->
+  <div id="dpad">
+    <div></div><button class="db" id="d-up">▲</button><div></div>
+    <button class="db" id="d-left">◀</button><div></div><button class="db" id="d-right">▶</button>
+    <div></div><button class="db" id="d-down">▼</button><div></div>
   </div>
+  <button id="dpad-e">E</button>
 
-  <!-- QUEST PANEL -->
-  <div id="panel-quest">
-
-    <!-- INTRO -->
-    <div id="s-intro" class="card">
-      <div class="intro-book">📖 Your Quest Begins</div>
-      <div class="intro-title">The Academy of Lost Words awaits.</div>
-      <p class="intro-lore">
-        The Academy of Lost Words stands at the edge of the known world — a school where figurative language is literal magic.
-        Each simile illuminates. Each metaphor transforms. Each allusion opens a door to another world.<br><br>
-        But tonight, a shadow creature called <em>The Literal</em> has drained the Academy's story-magic, leaving its halls dark and its tales silent.
-        You are the last apprentice. Journey through five enchanted regions, decode the devices that power each passage, and restore the Academy before its stories are lost forever.
-      </p>
-      <div class="intro-terms">
-        <span class="term-badge" style="color:#a8d878;border-color:#a8d878">Simile</span>
-        <span class="term-badge" style="color:#f0b840;border-color:#f0b840">Metaphor</span>
-        <span class="term-badge" style="color:#60c8e8;border-color:#60c8e8">Allusion</span>
-        <span class="term-badge" style="color:#e87880;border-color:#e87880">Repetition</span>
-        <span class="term-badge" style="color:#c080f0;border-color:#c080f0">Alliteration</span>
-        <span class="term-badge" style="color:#f09060;border-color:#f09060">Personification</span>
-      </div>
-      <label class="name-lbl" for="pname">Your name (for the leaderboard)</label>
-      <input type="text" id="pname" class="name-in" placeholder="e.g. Jordan M." maxlength="24">
-      <div class="name-err" id="name-err">⚠ Please enter your name to begin.</div>
-      <button class="begin-btn" onclick="beginQuest()"><span>Begin Your Quest →</span></button>
-    </div>
-
-    <!-- CHAPTER INTRO -->
-    <div id="s-chapter" class="card" style="display:none">
-      <div class="ch-intro">
-        <div class="ch-number" id="ch-num">Chapter I</div>
-        <span class="ch-symbol" id="ch-sym">🌲</span>
-        <div class="ch-title" id="ch-title">The Whispering Wood</div>
-        <div class="ch-divider"></div>
-        <p class="ch-lore" id="ch-lore">...</p>
-        <button class="ch-continue" onclick="startChapterScene()">Enter →</button>
-      </div>
-    </div>
-
-    <!-- SCENE / QUESTION -->
-    <div id="s-scene" style="display:none">
-      <div class="hud">
-        <div class="hud-item"><div class="hud-lbl">Score</div><div class="hud-val gold" id="h-score">0</div></div>
-        <div class="hud-item"><div class="hud-lbl">🔥 Streak</div><div class="hud-val glow" id="h-streak">0</div></div>
-        <div class="hud-item"><div class="hud-lbl">Progress</div><div class="hud-val" id="h-prog">1 / 15</div></div>
-      </div>
-      <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
-      <div class="card" id="scene-card"><!-- rendered by JS --></div>
-      <button class="continue-btn" id="cont-btn" onclick="onContinue()">Continue the Quest →</button>
-    </div>
-
-    <!-- ENDING -->
-    <div id="s-ending">
-      <div class="card">
-        <span class="ending-badge" id="end-badge">Quest Complete</span>
-        <span class="ending-symbol" id="end-sym">🏆</span>
-        <div class="ending-title" id="end-title">LEGENDARY</div>
-        <div class="ending-pts" id="end-pts">0</div>
-        <div class="ending-pts-lbl">points earned</div>
-        <p class="ending-story" id="end-story"></p>
-        <div id="missed-wrap" class="missed-wrap"></div>
-        <button class="replay-btn" onclick="replayGame()">↺ &nbsp;Play Again</button>
-      </div>
-    </div>
-
-  </div><!-- /panel-quest -->
-
-  <!-- LEADERBOARD PANEL -->
-  <div id="panel-lb">
-    <div class="card">
-      <div class="lb-head">
-        <div class="lb-title">🏆 Leaderboard</div>
-        <button class="lb-reload" onclick="loadLB()">↻ Refresh</button>
-      </div>
-      <div id="lb-list"><div class="lb-empty">Loading scores…</div></div>
+  <!-- Question Modal -->
+  <div id="qmodal">
+    <div class="qcard">
+      <div class="qcard-loc" id="q-loc"></div>
+      <div class="qcard-ctx" id="q-ctx"></div>
+      <div class="qcard-pass" id="q-pass"></div>
+      <div class="qcard-q" id="q-q"></div>
+      <div class="qopts" id="q-opts"></div>
+      <div class="qfb" id="q-fb"><div class="qfb-h" id="q-fbh"></div><div class="qfb-b" id="q-fbb"></div></div>
+      <button class="qnext" id="q-next" onclick="closeQuestion()">Continue Exploring →</button>
     </div>
   </div>
 
-</div><!-- /wrap -->
+  <!-- Start Screen -->
+  <div id="start">
+    <div class="sl">The Academy<br>of Lost Words</div>
+    <div class="ss">An 8th Grade Figurative Language Quest</div>
+    <p class="slore">The Academy's story-magic has been stolen by a shadow creature called The Literal. Journey through five enchanted regions — decode the passages on each ancient story stone to restore the lost language and break the curse.</p>
+    <p class="sctrl">Arrow Keys / WASD to move &nbsp;·&nbsp; E or Space to interact</p>
+    <label class="nlbl" for="pname">Your name (for leaderboard)</label>
+    <input type="text" id="pname" class="nin" placeholder="e.g. Jordan M." maxlength="24">
+    <div class="nerr" id="nerr">⚠ Enter your name to begin!</div>
+    <button class="sbtn" onclick="beginGame()">Enter the Academy →</button>
+  </div>
+
+  <!-- End Screen -->
+  <div id="end">
+    <div class="ecard">
+      <span class="esym" id="e-sym">🏆</span>
+      <div class="etitle" id="e-title">LEGENDARY</div>
+      <div class="epts" id="e-pts">0</div>
+      <div class="eptsl">points earned</div>
+      <p class="estory" id="e-story"></p>
+      <div id="e-missed"></div>
+      <button class="ereplay" onclick="replayGame()">↺ Play Again</button>
+      <button class="elb" onclick="openLB()">🏆 View Leaderboard</button>
+    </div>
+  </div>
+
+  <!-- Leaderboard -->
+  <div id="lb">
+    <div class="lbcard">
+      <div class="lbtop"><div class="lbtitle">🏆 Leaderboard</div><button class="lbclose" onclick="closeLB()">✕ Close</button></div>
+      <div id="lb-list"><div class="lbempty">Loading…</div></div>
+    </div>
+  </div>
+</div>
 
 <script>
-/* ═══════════════════════════════════════
-   CHAPTER DATA
-═══════════════════════════════════════ */
-const CHAPTERS = [
-  {
-    num:"Chapter I", title:"The Whispering Wood", sym:"🌲",
-    bg:"#08110a", chA:"#4faa60", glow:"rgba(79,170,96,0.22)",
-    lore:"You stand at the edge of the Academy's enchanted forest. Ancient oaks loom overhead, their bark carved with glowing symbols. Three story-stones pulse ahead — each sealed by a forgotten device. Speak the right name, and the wood will let you pass."
-  },
-  {
-    num:"Chapter II", title:"The Mirror Lake", sym:"🌊",
-    bg:"#060d18", chA:"#3a8ec8", glow:"rgba(58,142,200,0.2)",
-    lore:"The forest opens onto a vast silver lake. Its surface doesn't reflect your face — instead, it holds rippling passages from lost stories. Three of them surface from the depths, their language still charged with power. Name each device, and the water will part."
-  },
-  {
-    num:"Chapter III", title:"The Echo Caves", sym:"🕯️",
-    bg:"#0d0818", chA:"#9060d8", glow:"rgba(144,96,216,0.2)",
-    lore:"The path descends underground. Every sound here echoes three times, carrying fragments of lost stories that loop endlessly in the dark. Three passages bounce off the stone walls around you. Identify the device that powers each, and the echoes will finally rest."
-  },
-  {
-    num:"Chapter IV", title:"The Hall of Legends", sym:"🗡️",
-    bg:"#140e00", chA:"#c89828", glow:"rgba(200,152,40,0.22)",
-    lore:"You rise from the caves into a vast hall lined with murals of legendary heroes and scholars. Their stories are etched into every wall — but three passages are fading fast, their colors bleeding into dust. You must restore them before they vanish forever."
-  },
-  {
-    num:"Chapter V", title:"The Final Spire", sym:"⚡",
-    bg:"#160404", chA:"#c84040", glow:"rgba(200,64,64,0.22)",
-    lore:"At the heart of the Academy rises the Final Spire — the source of all story-magic. The shadow creature waits at the top. Three passages, burning with raw power, seal the entrance. This is what you have trained for. Name the devices. Restore the magic. Break the curse."
-  }
+/* ═══════════════════ CONSTANTS ═══════════════════ */
+const T=32, COLS=44, ROWS=34;
+const [GRASS,TREE,WATER,SAND,PATH,CAVE,CW,HALL,PIL,SPIRE,SW,FLOWER]=[0,1,2,3,4,5,6,7,8,9,10,11];
+const BLOCKED=new Set([TREE,WATER,CW,PIL,SW]);
+const CW_px=640, CH_px=448;
+
+/* ═══════════════════ QUESTIONS ═══════════════════ */
+const QS = [
+  // FOREST (0-2)
+  {zone:"The Whispering Wood",ctx:"The first story-stone pulses at the base of a gnarled oak. You press your palm to its surface and words rise like smoke...",pass:"Her laugh was like music filling the entire room with something warm and impossible to ignore.",q:"What figurative language device powers this passage?",opts:["Metaphor","Simile","Personification","Alliteration"],a:1,exp:"A <strong>simile</strong> compares two things using <em>like</em> or <em>as</em>. The laugh is compared to music using the word \"like\" — the two things remain separate but are put side by side.",ok:"The stone blazes gold. A path of light appears through the trees.",bad:"The stone dims. The forest deepens around you — but a faint path still holds."},
+  {zone:"The Whispering Wood",ctx:"Deeper in the wood, a second stone hums with a low, steady light. The inscription materializes letter by letter...",pass:"Marcus's bedroom was a tornado — clothes everywhere, dishes on the floor, chaos in every corner.",q:"What type of figurative language is used here?",opts:["Simile","Repetition","Alliteration","Metaphor"],a:3,exp:"A <strong>metaphor</strong> directly states that one thing <em>is</em> another. The bedroom is called a tornado — no \"like\" or \"as\" is used. That direct comparison is what separates a metaphor from a simile.",ok:"The stone cracks open with a sound like a long-held breath finally released.",bad:"The light flickers. The stone dims slightly but does not go dark."},
+  {zone:"The Whispering Wood",ctx:"At the heart of the forest, a final stone stands. The ancient trees lean inward as if listening...",pass:"The ancient oaks pressed close and whispered warnings into the ears of anyone brave enough to stop.",q:"What figurative language is used to describe the oak trees?",opts:["Allusion","Simile","Alliteration","Personification"],a:3,exp:"<strong>Personification</strong> gives human qualities to non-human things. Trees cannot physically \"press close\" or \"whisper\" — those are human actions assigned to nature to make it feel alive and watchful.",ok:"The forest blazes with returned light. A path opens south toward the caves.",bad:"The trees shudder. The path opens — but something in the dark watches you leave."},
+  // LAKE (3-5)
+  {zone:"The Mirror Lake",ctx:"A passage floats up from beneath the silver surface, its letters forming one by one on the water...",pass:"She slipped silently through the silver-shadowed streets, searching for something she could not name.",q:"What device is created by the repeated sounds at the start of key words?",opts:["Repetition","Metaphor","Personification","Alliteration"],a:3,exp:"<strong>Alliteration</strong> is the repetition of the same consonant sound at the beginning of nearby words. The \"S\" sound runs throughout: slipped, silently, silver-shadowed, streets, searching, something — giving it a flowing, musical rhythm.",ok:"The lake shimmers. A stepping-stone path rises from the shallows.",bad:"The lake stirs darkly. The stepping stones appear — but something watches from below."},
+  {zone:"The Mirror Lake",ctx:"A second passage emerges from deeper water. You hear the same words looping before you see them...",pass:"She searched the towers. She searched the halls. She searched the darkest corners of every room. She would not stop. She could not stop.",q:"What device creates the rhythm and urgency of this passage?",opts:["Alliteration","Simile","Repetition","Personification"],a:2,exp:"<strong>Repetition</strong> is the deliberate reuse of a word or phrase for emphasis. \"She searched\" repeats to build urgency. This specific pattern — repeating at the start of each clause — is called <em>anaphora</em>, a powerful form of repetition.",ok:"The water stills. A second stepping stone rises from the deep.",bad:"The echo fades unanswered. The path emerges slowly, reluctantly."},
+  {zone:"The Mirror Lake",ctx:"One passage remains, drifting on the surface — patient, unhurried, waiting exactly where you knew it would be...",pass:"The silence in the emptied halls was like the moment before a thunderclap — heavy, charged, impossible to ignore.",q:"What figurative language is used to describe the silence?",opts:["Metaphor","Simile","Allusion","Repetition"],a:1,exp:"<strong>Simile</strong> — silence is compared to \"the moment before a thunderclap\" using the word \"like.\" This gives an abstract thing (silence) a vivid, almost physical quality the reader can feel in their chest.",ok:"The final stone rises. The lake divides — a path opens across to the far shore.",bad:"A ripple disturbs the surface. The path forms — but something dark still circles below."},
+  // CAVE (6-8)
+  {zone:"The Echo Caves",ctx:"The first echoing passage is carved into the cave wall by ancient hands. The letters glow dully in the dark...",pass:"In that moment, his rage was a furnace — white-hot, consuming everything it touched and leaving only smoke behind.",q:"What figurative language device is used here?",opts:["Simile","Repetition","Allusion","Metaphor"],a:3,exp:"<strong>Metaphor</strong> — rage is directly called \"a furnace.\" No \"like\" or \"as\" is used. A simile would say the rage was <em>like</em> a furnace; a metaphor says it <em>is</em> one. That directness is the key distinction.",ok:"One corner of the cave brightens with amber warmth.",bad:"The echo continues, unresolved. But the dark holds — and you press on."},
+  {zone:"The Echo Caves",ctx:"The second passage bounces from wall to wall, the same words multiplying until you can't tell which version came first...",pass:"The cave walls had heard a thousand confessions. They remembered every word, held each one close, loyal guardians of every secret ever spoken into the dark.",q:"What device is used to describe the cave walls?",opts:["Allusion","Metaphor","Simile","Personification"],a:3,exp:"<strong>Personification</strong> — cave walls cannot \"hear,\" \"remember,\" or be \"loyal guardians.\" These are human qualities assigned to stone to make the cave feel alive, aware, and strangely trustworthy.",ok:"The walls go still. The echoes quiet. A hush falls — almost peaceful.",bad:"The walls keep echoing. They still for a moment, then the sound returns."},
+  {zone:"The Echo Caves",ctx:"At the deepest point, a final passage blazes on the floor — pulling at your memory, a story you read long ago...",pass:"He was her Achilles heel — the one soft spot in an otherwise unbreakable defense she had never managed to protect.",q:"This sentence references a figure from Greek mythology. What device is this?",opts:["Metaphor","Simile","Allusion","Repetition"],a:2,exp:"An <strong>allusion</strong> is an indirect reference to a well-known person, event, or story. \"Achilles heel\" refers to the Greek hero whose only weak point was his heel. Writers use allusions because they carry built-in meaning — the reader brings the whole myth.",ok:"The cave floor blazes. A tunnel opens — leading up, toward golden light.",bad:"The glow flickers. The tunnel opens — but feels darker than it should."},
+  // HALL (9-11)
+  {zone:"The Hall of Legends",ctx:"A great inscription stretches across the far wall — the words ancient, carved deep into stone by the founders...",pass:"\"We remember the fallen. We remember the brave. We remember those who stood when standing was the hardest thing they had ever been asked to do.\"",q:"What device gives this inscription its power and rhythm?",opts:["Alliteration","Simile","Personification","Repetition"],a:3,exp:"<strong>Repetition</strong> — \"We remember\" is repeated at the start of each clause. This specific pattern is called <em>anaphora</em> and is a classic rhetorical device in speeches and memorials. The effect builds emotion and creates a powerful, drumbeat rhythm.",ok:"The inscription blazes to life. A nearby mural floods with color — restored.",bad:"The inscription flickers. The mural stays faded — but the path forward holds."},
+  {zone:"The Hall of Legends",ctx:"A second mural shows a great battle frozen in time. Its caption is dissolving, its consonants crumbling into silence...",pass:"Dozens of daring defenders drew their blades at the door of the darkened hall, determined to deny the darkness even a single step.",q:"What device is used throughout this battle description?",opts:["Metaphor","Allusion","Alliteration","Personification"],a:2,exp:"<strong>Alliteration</strong> — the letter \"D\" repeats throughout: dozens, daring, defenders, drew, door, darkened, determined, deny, darkness. This creates a forceful, percussive rhythm — like the beat of a war drum.",ok:"The mural's soldiers raise their blades. Color floods back into the scene.",bad:"The mural stays partially faded. The soldiers' faces remain blank, unfinished."},
+  {zone:"The Hall of Legends",ctx:"The final passage glows above the great doorway, its letters barely visible — crumbling at the edges, almost gone...",pass:"History is a mirror. Look into it long enough, and you will always find your own reflection staring back from the depths.",q:"What figurative language device is used to describe history?",opts:["Simile","Allusion","Repetition","Metaphor"],a:3,exp:"<strong>Metaphor</strong> — history is directly called \"a mirror.\" No \"like\" or \"as\" is used. The comparison works because both history and a mirror show us ourselves — who we are and where we came from.",ok:"The doorway inscription blazes gold. The great door swings open onto a staircase rising into red light.",bad:"The inscription fades slightly. The door opens — but the staircase ahead looks darker than it should."},
+  // SPIRE (12-14)
+  {zone:"The Final Spire",ctx:"You stand at the base of the Final Spire. The shadow creature stirs above. Three burning passages seal the entrance...",pass:"The creature moved like smoke through the corridors — shapeless, silent, slipping through every gap and already gone before you could follow.",q:"What figurative language describes how the creature moves?",opts:["Simile","Personification","Allusion","Repetition"],a:0,exp:"<strong>Simile</strong> — the creature is compared to smoke using the word \"like.\" This creates a vivid image of something formless and impossible to catch. The comparison also builds dread: smoke fills space silently and without warning.",ok:"The first seal cracks. A line of golden light splits the stone of the entrance.",bad:"The seal resists. A shadow passes through the wall beside you — and keeps moving."},
+  {zone:"The Final Spire",ctx:"The second passage burns above the great lock. Something in it pulls at your memory — a myth, a box...",pass:"The keeper had opened a Pandora's Box the night she let the shadow in — and now the entire Academy was paying the price she never stopped to consider.",q:"This passage references Pandora's Box from Greek mythology. What device is this?",opts:["Metaphor","Repetition","Allusion","Personification"],a:2,exp:"<strong>Allusion</strong> — Pandora's Box references a Greek myth where a woman opens a forbidden container and releases all of the world's evils. By alluding to it, the writer suggests irreversible catastrophe without explaining the full story.",ok:"The second seal shatters. The door groans and begins to open.",bad:"The seal holds. The crack of light narrows — but you feel the door give."},
+  {zone:"The Final Spire",ctx:"One seal remains. The largest. It pulses with darkness. You speak the final passage aloud — and the whole Spire reacts...",pass:"The Spire held its breath as she reached for the last seal. Every stone, every beam, every shadow leaned inward — waiting to see what would happen next.",q:"What device brings the Spire itself to life in this passage?",opts:["Allusion","Metaphor","Alliteration","Personification"],a:3,exp:"<strong>Personification</strong> — a building cannot \"hold its breath\" or \"lean inward.\" These are human qualities assigned to the Spire to create intense anticipation. The device makes the setting feel alive — a witness to the story's climax.",ok:"✨ The final seal EXPLODES into light. The shadow dissolves. The Academy is restored.",bad:"The seal flickers — then shatters. The creature retreats into the dark. The Academy begins to breathe again."},
 ];
 
-/* ═══════════════════════════════════════
-   SCENE DATA — 15 scenes, 3 per chapter
-═══════════════════════════════════════ */
-const SCENES = [
-  // ── CHAPTER 1 ──
-  {ch:0,cat:"Simile",
-   context:"The first story-stone glows faintly ahead. You reach out and press your palm to its surface. Words rise like smoke from the stone...",
-   passage:"The old headmaster's voice was like gravel rolling downhill — rough, unstoppable, filling every corner of the room before anyone could think to block it out.",
-   q:"What figurative language device powers this passage?",
-   opts:["Metaphor","Simile","Personification","Alliteration"],ans:1,
-   exp:"A <strong>simile</strong> compares two things using <em>like</em> or <em>as</em>. The headmaster's voice is compared to \"gravel rolling downhill\" using the word \"like.\" The comparison is made — but the two things remain separate.",
-   ok:"The stone bursts with golden light. A warm path forms through the trees ahead.",
-   bad:"A dark ripple crosses the stone. It dims slightly — but does not go dark."},
+/* ═══════════════════ MAP ═══════════════════ */
+function buildMap(){
+  const m=Array.from({length:ROWS},()=>new Array(COLS).fill(GRASS));
+  const s=(c,r,t)=>{if(r>=0&&r<ROWS&&c>=0&&c<COLS)m[r][c]=t};
+  const fill=(c1,r1,c2,r2,t)=>{for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)s(c,r,t)};
 
-  {ch:0,cat:"Metaphor",
-   context:"Deeper in the wood, the second stone pulses red. A slow inscription materializes on its face, letter by letter...",
-   passage:"For the scholar, the great library was not a building — it was a second mind, always ready to think what she could not.",
-   q:"What device is used to describe the library here?",
-   opts:["Simile","Allusion","Metaphor","Repetition"],ans:2,
-   exp:"A <strong>metaphor</strong> directly states that one thing <em>is</em> another. The library is called \"a second mind\" — no \"like\" or \"as\" is used. This direct comparison is what separates a metaphor from a simile.",
-   ok:"The second stone cracks open with a sound like a breath being held and finally released.",
-   bad:"The stone dims. Shadows deepen between the roots of the ancient trees."},
+  // Outer border
+  fill(0,0,COLS-1,0,TREE);fill(0,ROWS-1,COLS-1,ROWS-1,TREE);
+  fill(0,1,0,ROWS-2,TREE);fill(COLS-1,1,COLS-1,ROWS-2,TREE);
 
-  {ch:0,cat:"Personification",
-   context:"The final stone stands at the heart of the wood. The trees around it lean inward — as if curious. As if watching what you will do...",
-   passage:"The ancient oaks pressed close and whispered warnings into the ears of anyone brave enough to listen.",
-   q:"What figurative language is used to describe the oak trees?",
-   opts:["Alliteration","Simile","Allusion","Personification"],ans:3,
-   exp:"<strong>Personification</strong> gives human qualities to non-human things. Trees cannot physically \"press close\" or \"whisper\" — these are human actions being assigned to the oaks to make them feel alive and aware.",
-   ok:"The final stone blazes. The trees part slowly, revealing a moonlit path toward the lake.",
-   bad:"The trees shudder. The path is darker than it should be — but it opens."},
+  // FOREST (cols 1-20, rows 1-14) — tree border + grass interior
+  fill(1,1,20,14,GRASS);
+  for(let r=1;r<=14;r++)for(let c=1;c<=20;c++)
+    if(r<=2||r>=13||c<=2||c>=19) s(c,r,TREE);
+  [[5,5],[9,4],[14,4],[17,6],[4,9],[11,10],[16,9],[6,12],[13,11]].forEach(([c,r])=>s(c,r,TREE));
+  [[7,6],[12,7],[5,11],[15,5],[9,12]].forEach(([c,r])=>s(c,r,FLOWER));
 
-  // ── CHAPTER 2 ──
-  {ch:1,cat:"Alliteration",
-   context:"The lake's surface ripples as you approach. A passage floats up from beneath — letters forming one by one on the silver water...",
-   passage:"She slipped silently through the silver-shadowed streets, searching for something she could not name and did not understand.",
-   q:"What device is created by the repeated sounds at the start of key words?",
-   opts:["Repetition","Metaphor","Personification","Alliteration"],ans:3,
-   exp:"<strong>Alliteration</strong> is the repetition of the same consonant sound at the beginning of nearby words. The \"S\" sound runs throughout: slipped, silently, silver-shadowed, streets, searching, something. This creates a musical, flowing rhythm.",
-   ok:"The lake shimmers. A stepping-stone path rises from the shallows.",
-   bad:"The lake stirs darkly. The passage sinks back beneath the surface, but the stepping stones appear."},
+  // LAKE (cols 23-42, rows 1-14)
+  fill(23,1,42,14,GRASS);
+  for(let r=1;r<=14;r++)for(let c=23;c<=42;c++)
+    if(r<=2||r>=13||c<=23||c>=41) s(c,r,TREE);
+  fill(28,4,39,12,SAND);fill(30,5,37,10,WATER);
+  [[25,6],[25,11],[40,7],[40,12]].forEach(([c,r])=>s(c,r,TREE));
 
-  {ch:1,cat:"Repetition",
-   context:"A second passage emerges from deeper water. You hear it before you see it — the same words looping in the air above the lake...",
-   passage:"She searched the towers. She searched the halls. She searched the darkest corners of the lowest rooms. She would not stop. She could not stop.",
-   q:"What device creates the rhythm and urgency of this passage?",
-   opts:["Alliteration","Simile","Repetition","Personification"],ans:2,
-   exp:"<strong>Repetition</strong> is the deliberate reuse of a word or phrase for emphasis. \"She searched\" repeats to build urgency, and \"stop\" is repeated twice for emphasis. This specific pattern — repeating a phrase at the start of each clause — is called <em>anaphora</em>, a powerful form of repetition.",
-   ok:"The water stills completely. A second stepping stone rises from the deep.",
-   bad:"The echo fades unanswered. The stone rises anyway, slowly."},
+  // PASSAGE A — Forest ↔ Lake (rows 8-10, cols 18-24)
+  for(let r=8;r<=10;r++)for(let c=18;c<=24;c++)s(c,r,PATH);
 
-  {ch:1,cat:"Simile",
-   context:"One passage remains. It drifts on the surface as if waiting — patient, unhurried, exactly where you knew it would be...",
-   passage:"The silence in the Academy's emptied halls was like the moment before a thunderclap — heavy, charged, and impossible to ignore.",
-   q:"What figurative language is used to describe the silence?",
-   opts:["Metaphor","Simile","Allusion","Repetition"],ans:1,
-   exp:"<strong>Simile</strong> — silence is compared to \"the moment before a thunderclap\" using the word \"like.\" This gives an abstract thing (silence) a vivid, almost physical quality the reader can feel.",
-   ok:"The final stone rises. The lake divides before you, and you walk across to the far shore.",
-   bad:"A ripple disturbs the passage. The path across appears — but something watches from the depths."},
+  // CAVE (cols 8-35, rows 17-24)
+  fill(8,17,35,24,CW);fill(9,18,34,23,CAVE);
+  // North openings
+  s(10,17,CAVE);s(11,17,CAVE); // west entrance (connects to passage B)
+  s(32,17,CAVE);s(33,17,CAVE); // east entrance (connects to passage C)
+  // South openings
+  s(10,24,PATH);s(11,24,PATH);s(32,24,PATH);s(33,24,PATH);
 
-  // ── CHAPTER 3 ──
-  {ch:2,cat:"Metaphor",
-   context:"The first echoing passage is carved into the cave wall by ancient hands. The letters glow dully in the dark...",
-   passage:"In that moment, his rage was a furnace — white-hot, consuming everything it touched and leaving only smoke and ruin behind.",
-   q:"What figurative language device is used here?",
-   opts:["Simile","Repetition","Allusion","Metaphor"],ans:3,
-   exp:"<strong>Metaphor</strong> — rage is directly called \"a furnace.\" No \"like\" or \"as\" is used. A simile would say the rage was <em>like</em> a furnace; a metaphor says it <em>is</em> one. That directness is the key distinction.",
-   ok:"The echo resolves. One corner of the cave brightens with amber warmth.",
-   bad:"The echo continues, unresolved. The dark presses inward — but holds."},
+  // PASSAGE B — Forest→Cave (cols 10-11, rows 13-17)
+  for(let r=13;r<=17;r++){s(10,r,PATH);s(11,r,PATH)}
 
-  {ch:2,cat:"Personification",
-   context:"The second passage bounces from wall to wall, the words multiplying until you can't tell which version came first...",
-   passage:"The cave walls had heard a thousand confessions. They remembered every word, held each one close, and gave nothing back — loyal guardians of every secret ever spoken into the dark.",
-   q:"What device is used to describe the cave walls?",
-   opts:["Allusion","Metaphor","Simile","Personification"],ans:3,
-   exp:"<strong>Personification</strong> — cave walls cannot \"hear,\" \"remember,\" or be \"loyal guardians.\" These are human qualities assigned to stone to make the cave feel alive, aware, and strangely trustworthy.",
-   ok:"The walls go still. The echoes quiet. A hush falls over the cave — almost peaceful.",
-   bad:"The walls keep echoing. The passage finally stills, though something about the silence feels wrong."},
+  // PASSAGE C — Lake→Cave (cols 32-33, rows 13-17)
+  for(let r=13;r<=17;r++){s(32,r,PATH);s(33,r,PATH)}
 
-  {ch:2,cat:"Allusion",
-   context:"At the deepest point of the cave, a final passage blazes on the floor. Something about it pulls at your memory — a story you read long ago...",
-   passage:"He was her Achilles heel — the one soft spot in an otherwise unbreakable defense, the vulnerability she had never managed to protect.",
-   q:"This sentence references a famous figure from Greek mythology. What device is this?",
-   opts:["Metaphor","Simile","Allusion","Repetition"],ans:2,
-   exp:"An <strong>allusion</strong> is an indirect reference to a well-known person, event, or story. \"Achilles heel\" refers to the Greek hero Achilles, whose only weak point was his heel. Writers use allusions because they carry built-in meaning — the reader brings the whole myth.",
-   ok:"The cave floor blazes beneath your feet. A tunnel opens — leading up, toward golden light.",
-   bad:"The glow flickers. The passage dims — but the tunnel opens all the same."},
+  // PASSAGE D — Cave→Hall (cols 10-11, rows 24-26)
+  for(let r=24;r<=26;r++){s(10,r,PATH);s(11,r,PATH)}
 
-  // ── CHAPTER 4 ──
-  {ch:3,cat:"Repetition",
-   context:"The Hall of Legends surrounds you. A great inscription stretches across the far wall — the words ancient, carved deep into stone...",
-   passage:"\"We remember the fallen. We remember the brave. We remember those who stood when standing was the hardest thing any of them had ever been asked to do.\"",
-   q:"What device gives this inscription its power and rhythm?",
-   opts:["Alliteration","Simile","Personification","Repetition"],ans:3,
-   exp:"<strong>Repetition</strong> — \"We remember\" is repeated at the start of each clause. This specific pattern is called <em>anaphora</em> and is a classic rhetorical device used in speeches and memorials. The effect builds emotion and creates a powerful, drumbeat rhythm.",
-   ok:"The inscription blazes to life. A nearby mural floods with color — restored.",
-   bad:"The inscription flickers. The mural stays faded — but the path forward holds."},
+  // PASSAGE E — Cave→Spire (cols 32-33, rows 24-26)
+  for(let r=24;r<=26;r++){s(32,r,PATH);s(33,r,PATH)}
 
-  {ch:3,cat:"Alliteration",
-   context:"A second mural shows a great battle frozen in time — but its caption is dissolving, its consonants crumbling into silence...",
-   passage:"Dozens of daring defenders drew their blades at the door of the darkened hall, determined to deny the darkness even a single step forward.",
-   q:"What device is used throughout this battle description?",
-   opts:["Metaphor","Allusion","Alliteration","Personification"],ans:2,
-   exp:"<strong>Alliteration</strong> — the letter \"D\" repeats throughout: dozens, daring, defenders, drew, door, darkened, determined, deny, darkness. This creates a forceful, percussive rhythm — like the beat of a war drum.",
-   ok:"The mural's soldiers raise their blades. Color floods back into the scene.",
-   bad:"The mural stays partially faded. The soldiers' faces remain blank, unfinished."},
+  // HALL (cols 1-21, rows 26-33)
+  fill(1,26,21,33,HALL);
+  fill(1,26,1,33,CW);fill(21,26,21,33,CW);
+  fill(2,26,20,26,CW);fill(2,33,20,33,CW);
+  s(10,26,HALL);s(11,26,HALL); // doorway
+  [[3,28],[8,28],[14,28],[18,28],[3,31],[8,31],[14,31],[18,31]].forEach(([c,r])=>s(c,r,PIL));
 
-  {ch:3,cat:"Metaphor",
-   context:"The final passage is inscribed above the great hall's doorway. Its letters are barely visible — crumbling at the edges, almost gone...",
-   passage:"History is a mirror. Look into it long enough, and you will always find your own reflection staring back from the depths of it.",
-   q:"What figurative language device is used to describe history?",
-   opts:["Simile","Allusion","Repetition","Metaphor"],ans:3,
-   exp:"<strong>Metaphor</strong> — history is directly called \"a mirror.\" No \"like\" or \"as\" is used. The comparison works because both history and a mirror show us ourselves — who we are and where we came from.",
-   ok:"The doorway inscription blazes gold. The great door swings open onto a staircase rising into red light.",
-   bad:"The inscription fades slightly. The door opens anyway — but the staircase ahead looks much darker than it should."},
+  // SPIRE (cols 23-42, rows 26-33)
+  fill(23,26,42,33,SPIRE);
+  fill(23,26,23,33,SW);fill(42,26,42,33,SW);
+  fill(24,26,41,26,SW);fill(24,33,41,33,SW);
+  s(32,26,SPIRE);s(33,26,SPIRE); // doorway
+  [[25,28],[29,28],[35,28],[39,28],[25,31],[29,31],[35,31],[39,31]].forEach(([c,r])=>s(c,r,SW));
 
-  // ── CHAPTER 5 ──
-  {ch:4,cat:"Simile",
-   context:"You stand at the base of the Final Spire. Somewhere above you, the shadow creature stirs. Three burning passages seal the entrance — the most powerful you have faced...",
-   passage:"The creature moved like smoke through the corridors — shapeless, silent, slipping through every gap and already gone before you could think to follow.",
-   q:"What figurative language device describes how the creature moves?",
-   opts:["Simile","Personification","Allusion","Repetition"],ans:0,
-   exp:"<strong>Simile</strong> — the creature is compared to smoke using the word \"like.\" This creates a vivid image of something formless and impossible to catch. The comparison also builds dread: smoke fills space silently and without warning.",
-   ok:"The first seal cracks. A line of golden light splits the stone of the entrance.",
-   bad:"The seal resists. A shadow passes through the wall beside you — and keeps moving."},
-
-  {ch:4,cat:"Allusion",
-   context:"The second passage burns above the door's great lock. You can feel the reference pulling at something deep in your memory — a myth. A box...",
-   passage:"The keeper had opened a Pandora's Box the night she let the shadow creature in — and now the entire Academy was paying the price she had never stopped to consider.",
-   q:"The story references Pandora's Box from Greek mythology. What device is this?",
-   opts:["Metaphor","Repetition","Allusion","Personification"],ans:2,
-   exp:"<strong>Allusion</strong> — Pandora's Box references a Greek myth in which a woman opens a forbidden box and releases all of the world's evils. By alluding to it, the writer suggests irreversible, catastrophic consequences without needing to explain the full story.",
-   ok:"The second seal shatters. The door groans and begins to inch open.",
-   bad:"The seal holds. The crack of light narrows — but you feel the door give slightly."},
-
-  {ch:4,cat:"Personification",
-   context:"One seal remains. The largest. It pulses with darkness. You speak the final passage aloud — and the whole Spire reacts...",
-   passage:"The Spire held its breath as she reached for the last seal. Every stone, every beam, every shadow leaned inward, waiting to see what would happen next.",
-   q:"What device is used to bring the Spire to life in this passage?",
-   opts:["Allusion","Metaphor","Alliteration","Personification"],ans:3,
-   exp:"<strong>Personification</strong> — a building cannot \"hold its breath\" or \"lean inward.\" These are human qualities being assigned to the Spire to create intense, almost unbearable anticipation. The device makes the setting feel alive — a witness to the story's climax.",
-   ok:"✨ The final seal explodes into light. The shadow creature howls and dissolves into nothing. The Academy is restored.",
-   bad:"The seal flickers — then shatters anyway, as if the building itself decided the answer was close enough. The creature retreats into the dark."}
-];
-
-/* ═══════════════════════════════════════
-   STATE
-═══════════════════════════════════════ */
-let G = {
-  name:'', screen:'intro',
-  scene:0, score:0, streak:0,
-  missed:[], answered:false,
-  awaitingChapter:true
-};
-
-/* ═══════════════════════════════════════
-   CHAPTER THEMING
-═══════════════════════════════════════ */
-function applyChapter(ci){
-  const c = CHAPTERS[ci];
-  document.body.style.background = c.bg;
-  document.documentElement.style.setProperty('--ch-a', c.chA);
-  document.documentElement.style.setProperty('--ch-glow', c.glow);
-  spawnMotes(c.chA);
+  // Clear story stone positions
+  STONES.forEach(st=>{ if(BLOCKED.has(m[st.row]?.[st.col])) s(st.col,st.row,GRASS); });
+  return m;
 }
 
-function spawnMotes(color){
-  document.querySelectorAll('.mote').forEach(m=>m.remove());
-  for(let i=0;i<12;i++){
-    const m=document.createElement('div');
-    m.className='mote';
-    const sz = 2+Math.random()*4;
-    m.style.cssText=`
-      left:${Math.random()*100}vw;
-      top:${20+Math.random()*70}vh;
-      width:${sz}px;height:${sz}px;
-      background:${color};
-      --d:${6+Math.random()*8}s;
-      --delay:${-Math.random()*8}s;
-      --tx:${(Math.random()-0.5)*60}px;
-      --ty:${-20-Math.random()*50}px;
-      filter:blur(${sz>4?1:0}px);
-    `;
-    document.body.appendChild(m);
+/* ═══════════════════ STORY STONES ═══════════════════ */
+const STONES=[
+  // Forest
+  {col:7,row:6,qIdx:0,solved:false},{col:14,row:9,qIdx:1,solved:false},{col:15,row:5,qIdx:2,solved:false},
+  // Lake
+  {col:27,row:5,qIdx:3,solved:false},{col:34,row:10,qIdx:4,solved:false},{col:37,row:6,qIdx:5,solved:false},
+  // Cave
+  {col:14,row:21,qIdx:6,solved:false},{col:21,row:21,qIdx:7,solved:false},{col:28,row:21,qIdx:8,solved:false},
+  // Hall
+  {col:5,row:29,qIdx:9,solved:false},{col:11,row:30,qIdx:10,solved:false},{col:16,row:29,qIdx:11,solved:false},
+  // Spire
+  {col:27,row:29,qIdx:12,solved:false},{col:33,row:30,qIdx:13,solved:false},{col:38,row:29,qIdx:14,solved:false},
+];
+
+/* ═══════════════════ GAME STATE ═══════════════════ */
+let MAP, playerName='', score=0, streak=0, answered=false;
+let activeStone=null, gameRunning=false;
+let px=10*T+16, py=7*T+16; // pixel position (center)
+const SPD=2.2;
+let dir=2; // 0=up,1=right,2=down,3=left
+let walkTick=0, walkFrame=0;
+let camX=0, camY=0;
+let lastZone='', zoneBannerTimer=0;
+let prevTime=0;
+
+const keys={up:false,down:false,left:false,right:false};
+const touch={up:false,down:false,left:false,right:false};
+
+/* ═══════════════════ TILE RENDERING ═══════════════════ */
+function drawTile(ctx,id,px,py,t){
+  const S=T;
+  switch(id){
+    case GRASS:{
+      ctx.fillStyle='#4a8a3a';ctx.fillRect(px,py,S,S);
+      // Grass tufts (deterministic based on position)
+      const seed=(px*31+py*17)%100;
+      ctx.fillStyle='#3d7a2e';
+      for(let i=0;i<3;i++){const x=((seed*7+i*33)%28)+2,y=((seed*11+i*17)%24)+4;ctx.fillRect(px+x,py+y,2,3)}
+      break;}
+    case TREE:{
+      ctx.fillStyle='#1a3a14';ctx.fillRect(px,py,S,S);
+      // Canopy shading
+      ctx.fillStyle='#245a1c';ctx.fillRect(px+4,py+4,S-8,S-8);
+      ctx.fillStyle='#2d6e24';ctx.fillRect(px+8,py+6,S-16,S-14);
+      ctx.fillStyle='#3a8430';ctx.beginPath();ctx.arc(px+S/2,py+S/2-2,9,0,Math.PI*2);ctx.fill();
+      break;}
+    case WATER:{
+      ctx.fillStyle='#1a5c9e';ctx.fillRect(px,py,S,S);
+      const wave=Math.sin(t*1.8+px*0.08)*2;
+      ctx.fillStyle='#2472b8';
+      ctx.fillRect(px,py+6+wave,S,4);
+      ctx.fillRect(px,py+18+wave,S,3);
+      ctx.fillRect(px,py+28-wave,S,3);
+      break;}
+    case SAND:{
+      ctx.fillStyle='#d4c078';ctx.fillRect(px,py,S,S);
+      ctx.fillStyle='#c8b46a';
+      const seed2=(px*13+py*29)%80;
+      for(let i=0;i<4;i++){const x=((seed2*5+i*19)%28)+2,y=((seed2*7+i*23)%24)+4;ctx.fillRect(px+x,py+y,2,2)}
+      break;}
+    case PATH:{
+      ctx.fillStyle='#8a7a6a';ctx.fillRect(px,py,S,S);
+      ctx.fillStyle='#7a6a58';
+      ctx.fillRect(px,py,S,1);ctx.fillRect(px,py,1,S);
+      ctx.fillRect(px+S-1,py,1,S);ctx.fillRect(px,py+S-1,S,1);
+      break;}
+    case CAVE:{
+      ctx.fillStyle='#28182e';ctx.fillRect(px,py,S,S);
+      // Crystal glints
+      const seed3=(px*7+py*41)%60;
+      if(seed3<12){ctx.fillStyle='rgba(140,100,200,0.4)';ctx.fillRect(px+seed3+4,py+(seed3*3)%20+4,2,4)}
+      break;}
+    case CW:{
+      ctx.fillStyle='#100a18';ctx.fillRect(px,py,S,S);
+      ctx.fillStyle='#180e22';
+      ctx.fillRect(px+2,py+2,6,8);ctx.fillRect(px+18,py+14,5,10);ctx.fillRect(px+10,py+20,4,10);
+      break;}
+    case HALL:{
+      ctx.fillStyle='#c8a848';ctx.fillRect(px,py,S,S);
+      ctx.fillStyle='#b89838';
+      ctx.fillRect(px,py,S,1);ctx.fillRect(px,py,1,S);
+      ctx.fillRect(px+S/2,py,1,S);ctx.fillRect(px,py+S/2,S,1);
+      ctx.fillStyle='rgba(255,220,120,0.12)';ctx.fillRect(px+2,py+2,S/2-3,S/2-3);
+      break;}
+    case PIL:{
+      ctx.fillStyle='#c8a848';ctx.fillRect(px,py,S,S); // hall floor beneath
+      ctx.fillStyle='#6a4808';ctx.fillRect(px+8,py+4,S-16,S-8);
+      ctx.fillStyle='#8a6010';ctx.fillRect(px+9,py+5,S-20,4);
+      ctx.fillStyle='#4a3005';ctx.fillRect(px+8,py+4,2,S-8);
+      break;}
+    case SPIRE:{
+      ctx.fillStyle='#2a0e10';ctx.fillRect(px,py,S,S);
+      // Glowing cracks
+      const t2=t*2;
+      const alpha=0.3+Math.sin(t2+px*0.1)*0.15;
+      ctx.strokeStyle=`rgba(200,40,40,${alpha})`;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(px+4,py+8);ctx.lineTo(px+12,py+20);ctx.lineTo(px+8,py+28);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(px+20,py+4);ctx.lineTo(px+26,py+16);ctx.lineTo(px+22,py+28);ctx.stroke();
+      break;}
+    case SW:{
+      ctx.fillStyle='#08030a';ctx.fillRect(px,py,S,S);
+      ctx.fillStyle='rgba(160,20,20,0.3)';ctx.fillRect(px,py,S,2);ctx.fillRect(px,py+S-2,S,2);
+      break;}
+    case FLOWER:{
+      ctx.fillStyle='#4a8a3a';ctx.fillRect(px,py,S,S);
+      ctx.fillStyle='#3d7a2e';for(let i=0;i<2;i++){ctx.fillRect(px+5+i*14,py+18,2,3)}
+      ctx.fillStyle='#f0e050';ctx.fillRect(px+6,py+12,4,4);
+      ctx.fillStyle='#e8c030';ctx.fillRect(px+18,py+14,4,4);
+      break;}
+    default:
+      ctx.fillStyle='#4a8a3a';ctx.fillRect(px,py,S,S);
   }
 }
 
-/* ═══════════════════════════════════════
-   SCREEN NAVIGATION
-═══════════════════════════════════════ */
-function show(id){
-  ['s-intro','s-chapter','s-scene','s-ending'].forEach(s=>{
-    const el=document.getElementById(s);
-    if(el) el.style.display = s===id ? '' : 'none';
+/* ═══════════════════ STORY STONE DRAW ═══════════════════ */
+function drawStone(ctx,stone,t){
+  const sx=stone.col*T-camX, sy=stone.row*T-camY;
+  if(sx<-T||sx>CW_px+T||sy<-T||sy>CH_px+T)return;
+  const glowR=stone.solved?'#d4a840':'#6080ff';
+  const glowA=0.25+Math.sin(t*2.5)*0.15;
+  // Glow ring
+  ctx.beginPath();ctx.arc(sx+16,sy+16,20,0,Math.PI*2);
+  ctx.fillStyle=`rgba(${stone.solved?'212,168,64':'80,100,255'},${glowA})`;ctx.fill();
+  // Stone base
+  ctx.fillStyle='#7a6a58';ctx.fillRect(sx+8,sy+18,16,14);
+  // Stone pillar (extends up into tile above)
+  ctx.fillStyle='#9a8a78';ctx.fillRect(sx+10,sy-8,12,28);
+  // Stone top cap
+  ctx.fillStyle='#b8a890';ctx.fillRect(sx+9,sy-10,14,6);
+  // Rune marks
+  ctx.fillStyle=stone.solved?'rgba(212,168,64,0.7)':'rgba(120,140,255,0.6)';
+  ctx.fillRect(sx+13,sy-4,6,2);ctx.fillRect(sx+15,sy+2,2,8);ctx.fillRect(sx+13,sy+6,6,2);
+  // Glow border
+  ctx.strokeStyle=stone.solved?'rgba(212,168,64,0.5)':'rgba(100,120,255,0.4)';
+  ctx.lineWidth=1;ctx.strokeRect(sx+9,sy-10,14,40);
+  // Floating symbol
+  const bob=Math.sin(t*2)*3;
+  ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  if(stone.solved){
+    ctx.fillStyle='#d4a840';ctx.fillText('★',sx+16,sy-18+bob);
+  } else {
+    ctx.fillStyle='rgba(180,200,255,0.9)';ctx.fillText('?',sx+16,sy-18+bob);
+  }
+}
+
+/* ═══════════════════ PLAYER DRAW ═══════════════════ */
+function drawPlayer(ctx,t){
+  const sx=Math.round(px-camX), sy=Math.round(py-camY);
+  const walk=(walkTick>0)?(walkFrame%2===0?1:-1):0;
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.35)';ctx.beginPath();ctx.ellipse(sx,sy+12,9,4,0,0,Math.PI*2);ctx.fill();
+  // Legs
+  ctx.fillStyle='#3a5030';
+  if(dir===2||dir===0){ctx.fillRect(sx-5,sy+4+walk,4,8);ctx.fillRect(sx+1,sy+4-walk,4,8);}
+  else{ctx.fillRect(sx-6,sy+2,4,9);ctx.fillRect(sx+2,sy+2,4,9);}
+  // Body (tunic)
+  ctx.fillStyle='#4aaa50';ctx.fillRect(sx-7,sy-8,14,14);
+  // Belt
+  ctx.fillStyle='#5a3010';ctx.fillRect(sx-7,sy+3,14,3);
+  // Arms
+  ctx.fillStyle='#4aaa50';
+  if(dir===1){ctx.fillRect(sx+6,sy-7,5,10);ctx.fillRect(sx-9,sy-4,4,8);}
+  else if(dir===3){ctx.fillRect(sx-10,sy-7,5,10);ctx.fillRect(sx+5,sy-4,4,8);}
+  else{ctx.fillRect(sx-10,sy-6,4,9);ctx.fillRect(sx+6,sy-6,4,9);}
+  // Head
+  ctx.fillStyle='#f4c88a';ctx.fillRect(sx-6,sy-20,12,12);
+  // Hat
+  ctx.fillStyle='#2d8030';ctx.fillRect(sx-7,sy-22,14,8);ctx.fillRect(sx-4,sy-26,10,6);
+  // Eyes/face direction
+  ctx.fillStyle='#1a1010';
+  if(dir===2){ctx.fillRect(sx-3,sy-14,3,2);ctx.fillRect(sx+1,sy-14,3,2);}
+  else if(dir===0){ctx.fillRect(sx-3,sy-12,3,2);ctx.fillRect(sx+1,sy-12,3,2);}
+  else if(dir===1){ctx.fillRect(sx+2,sy-15,3,2);ctx.fillRect(sx+2,sy-11,3,2);}
+  else{ctx.fillRect(sx-4,sy-15,3,2);ctx.fillRect(sx-4,sy-11,3,2);}
+}
+
+/* ═══════════════════ MINIMAP ═══════════════════ */
+function drawMinimap(ctx){
+  const mw=88,mh=68,mx=CW_px-mw-6,my=CH_px-mh-6;
+  const sx=COLS/mw, sy=ROWS/mh;
+  ctx.fillStyle='rgba(0,0,0,0.72)';ctx.fillRect(mx-1,my-1,mw+2,mh+2);
+  ctx.fillStyle='rgba(255,255,255,0.06)';ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
+  ctx.strokeRect(mx-1,my-1,mw+2,mh+2);
+  // Zone colors on minimap
+  const zc={[GRASS]:'#2a5020',[TREE]:'#12280e',[WATER]:'#0e3866',[SAND]:'#7a6a3a',[PATH]:'#5a4e42',[CAVE]:'#18102a',[CW]:'#0a0614',[HALL]:'#6a5420',[PIL]:'#3a2808',[SPIRE]:'#1a0808',[SW]:'#040204',[FLOWER]:'#2a5020'};
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const tid=MAP[r][c];
+    ctx.fillStyle=zc[tid]||'#2a5020';
+    ctx.fillRect(mx+Math.floor(c/sx),my+Math.floor(r/sy),Math.ceil(1/sx)+1,Math.ceil(1/sy)+1);
+  }
+  // Story stones on minimap
+  STONES.forEach(st=>{
+    ctx.fillStyle=st.solved?'#d4a840':'rgba(100,120,255,0.8)';
+    ctx.fillRect(mx+Math.floor(st.col/sx)-1,my+Math.floor(st.row/sy)-1,3,3);
   });
+  // Player dot
+  const pcx=mx+Math.floor((px/T)/sx), pcy=my+Math.floor((py/T)/sy);
+  ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(pcx,pcy,2,0,Math.PI*2);ctx.fill();
 }
 
-function switchTab(t){
-  document.getElementById('panel-quest').style.display = t==='quest' ? '' : 'none';
-  document.getElementById('panel-lb').style.display    = t==='lb'   ? '' : 'none';
-  document.getElementById('tab-quest').classList.toggle('active', t==='quest');
-  document.getElementById('tab-lb').classList.toggle('active', t==='lb');
-  if(t==='lb') loadLB();
+/* ═══════════════════ ZONE DETECTION ═══════════════════ */
+const ZONES=[
+  {name:'The Whispering Wood',sub:'Chapter I · Simile · Metaphor · Personification',check:(c,r)=>c>=3&&c<=18&&r>=3&&r<=12},
+  {name:'The Mirror Lake',sub:'Chapter II · Alliteration · Repetition · Simile',check:(c,r)=>c>=24&&c<=40&&r>=3&&r<=12},
+  {name:'The Echo Caves',sub:'Chapter III · Metaphor · Personification · Allusion',check:(c,r)=>c>=9&&c<=34&&r>=18&&r<=23},
+  {name:'The Hall of Legends',sub:'Chapter IV · Repetition · Alliteration · Metaphor',check:(c,r)=>c>=2&&c<=20&&r>=27&&r<=32},
+  {name:'The Final Spire',sub:'Chapter V · Simile · Allusion · Personification',check:(c,r)=>c>=24&&c<=41&&r>=27&&r<=32},
+];
+
+function getZone(c,r){
+  for(const z of ZONES)if(z.check(c,r))return z;
+  return null;
 }
 
-/* ═══════════════════════════════════════
-   GAME FLOW
-═══════════════════════════════════════ */
-function beginQuest(){
-  const nm = document.getElementById('pname').value.trim();
-  if(!nm){ document.getElementById('name-err').style.display='block'; return; }
-  document.getElementById('name-err').style.display='none';
-  G.name=nm; G.scene=0; G.score=0; G.streak=0; G.missed=[];
-  applyChapter(0);
-  showChapterIntro(0);
+/* ═══════════════════ COLLISION ═══════════════════ */
+function canMove(nx,ny){
+  const HW=9,HH=9;
+  const corners=[[nx-HW,ny-HH],[nx+HW,ny-HH],[nx-HW,ny+HH],[nx+HW,ny+HH]];
+  for(const [cx,cy] of corners){
+    const tc=Math.floor(cx/T), tr=Math.floor(cy/T);
+    if(tc<0||tc>=COLS||tr<0||tr>=ROWS)return false;
+    if(BLOCKED.has(MAP[tr][tc]))return false;
+    // Block stone tiles
+    for(const st of STONES){if(Math.abs(tc-st.col)===0&&Math.abs(tr-st.row)===0)return false;}
+  }
+  return true;
 }
 
-function showChapterIntro(ci){
-  const c = CHAPTERS[ci];
-  document.getElementById('ch-num').textContent   = c.num;
-  document.getElementById('ch-title').textContent = c.title;
-  document.getElementById('ch-sym').textContent   = c.sym;
-  document.getElementById('ch-lore').textContent  = c.lore;
-  show('s-chapter');
-  G.awaitingChapter = true;
-  // reapply theme every chapter open so tabs stay correct
-  applyChapter(ci);
+/* ═══════════════════ UPDATE ═══════════════════ */
+function update(dt,t){
+  if(!gameRunning||document.getElementById('qmodal').classList.contains('open'))return;
+
+  const up=keys.up||touch.up, dn=keys.down||touch.down;
+  const lt=keys.left||touch.left, rt=keys.right||touch.right;
+  let mx2=0,my2=0;
+  if(up)my2-=SPD;if(dn)my2+=SPD;if(lt)mx2-=SPD;if(rt)mx2+=SPD;
+  // Normalize diagonal
+  if(mx2!==0&&my2!==0){mx2*=0.707;my2*=0.707;}
+
+  if(mx2!==0||my2!==0){
+    if(Math.abs(mx2)>Math.abs(my2))dir=mx2>0?1:3; else dir=my2>0?2:0;
+    walkTick=6;
+    walkFrame++;
+    if(walkFrame>100)walkFrame=0;
+    if(canMove(px+mx2,py))px+=mx2;
+    if(canMove(px,py+my2))py+=my2;
+  } else {walkTick=Math.max(0,walkTick-1);}
+
+  // Camera (smooth follow)
+  const targetCX=px-CW_px/2, targetCY=py-CH_px/2;
+  const maxCX=(COLS*T-CW_px), maxCY=(ROWS*T-CH_px);
+  camX+=(Math.max(0,Math.min(maxCX,targetCX))-camX)*0.12;
+  camY+=(Math.max(0,Math.min(maxCY,targetCY))-camY)*0.12;
+
+  // Zone detection
+  const pc=Math.floor(px/T), pr=Math.floor(py/T);
+  const z=getZone(pc,pr);
+  if(z&&z.name!==lastZone){
+    lastZone=z.name;
+    document.getElementById('zn-t').textContent=z.name;
+    document.getElementById('zn-s').textContent=z.sub;
+    const zn=document.getElementById('zone-name');
+    zn.classList.add('vis');
+    zoneBannerTimer=0;
+  }
+  if(lastZone){
+    zoneBannerTimer+=dt;
+    if(zoneBannerTimer>2500)document.getElementById('zone-name').classList.remove('vis');
+  }
+
+  // Interaction prompt
+  const near=getNearStone();
+  const ep=document.getElementById('eprompt');
+  if(near&&!near.solved)ep.classList.add('vis'); else ep.classList.remove('vis');
 }
 
-function startChapterScene(){
-  G.awaitingChapter = false;
-  show('s-scene');
-  renderScene();
+function getNearStone(){
+  let best=null,bestD=50;
+  for(const st of STONES){
+    const sx=st.col*T+16,sy=st.row*T+16;
+    const d=Math.hypot(px-sx,py-sy);
+    if(d<bestD){bestD=d;best=st;}
+  }
+  return best;
 }
 
-function renderScene(){
-  G.answered = false;
-  const s   = SCENES[G.scene];
-  const tot = SCENES.length;
-  document.getElementById('h-score').textContent  = G.score;
-  document.getElementById('h-streak').textContent = G.streak;
-  document.getElementById('h-prog').textContent   = `${G.scene+1} / ${tot}`;
-  document.getElementById('prog-fill').style.width = `${(G.scene/tot)*100}%`;
+/* ═══════════════════ RENDER ═══════════════════ */
+function render(t){
+  const ctx=document.getElementById('cv').getContext('2d');
+  ctx.clearRect(0,0,CW_px,CH_px);
 
-  document.getElementById('scene-card').innerHTML = `
-    <div class="scene-meta">
-      <span class="scene-num">Scene ${(G.scene%3)+1} of 3</span>
-    </div>
-    <p class="scene-context">${s.context}</p>
-    <div class="scene-passage">"${s.passage}"</div>
-    <p class="scene-q">${s.q}</p>
-    <div class="ans-grid" id="ans-grid">
-      ${s.opts.map((o,i)=>`
-        <button class="ans" onclick="pickAns(${i})" id="opt${i}">
-          <span class="ltr">${'ABCD'[i]}</span><span>${o}</span>
-        </button>`).join('')}
-    </div>
-    <div class="story-result" id="story-result"></div>
-  `;
-  document.getElementById('cont-btn').style.display='none';
+  // Visible tile range
+  const c0=Math.floor(camX/T), r0=Math.floor(camY/T);
+  const c1=Math.min(COLS-1,c0+Math.ceil(CW_px/T)+1);
+  const r1=Math.min(ROWS-1,r0+Math.ceil(CH_px/T)+1);
+
+  for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++)
+    drawTile(ctx,MAP[r][c],c*T-camX,r*T-camY,t);
+
+  // Story stones
+  for(const st of STONES)drawStone(ctx,st,t);
+
+  // Player
+  if(gameRunning)drawPlayer(ctx,t);
+
+  // Minimap
+  drawMinimap(ctx);
 }
 
-function pickAns(idx){
-  if(G.answered) return;
-  G.answered = true;
-  const s  = SCENES[G.scene];
-  const ok = idx === s.ans;
-  document.querySelectorAll('.ans').forEach(b=>b.disabled=true);
-  document.getElementById('opt'+idx).classList.add(ok?'correct':'wrong');
-  if(!ok) document.getElementById('opt'+s.ans).classList.add('correct');
+/* ═══════════════════ QUESTION SYSTEM ═══════════════════ */
+function tryInteract(){
+  const near=getNearStone();
+  if(!near||near.solved)return;
+  openQuestion(near);
+}
 
-  // Score
+function openQuestion(stone){
+  activeStone=stone;
+  answered=false;
+  const q=QS[stone.qIdx];
+  document.getElementById('q-loc').textContent=`📍 ${q.zone}`;
+  document.getElementById('q-ctx').textContent=q.ctx;
+  document.getElementById('q-pass').textContent=`"${q.pass}"`;
+  document.getElementById('q-q').textContent=q.q;
+  document.getElementById('q-fb').className='qfb';
+  document.getElementById('q-next').style.display='none';
+
+  const opts=document.getElementById('q-opts');
+  opts.innerHTML=q.opts.map((o,i)=>`
+    <button class="qo" onclick="pickAnswer(${i})" id="qo${i}">
+      <span class="ql">${'ABCD'[i]}</span>${o}
+    </button>`).join('');
+  document.getElementById('qmodal').classList.add('open');
+}
+
+function pickAnswer(idx){
+  if(answered)return;
+  answered=true;
+  const q=QS[activeStone.qIdx];
+  const ok=idx===q.a;
+  document.querySelectorAll('.qo').forEach(b=>b.disabled=true);
+  document.getElementById('qo'+idx).classList.add(ok?'c':'w');
+  if(!ok)document.getElementById('qo'+q.a).classList.add('c');
+
+  const fb=document.getElementById('q-fb');
   if(ok){
-    const bonus = G.streak >= 2;
-    G.score += bonus ? 20 : 10;
-    G.streak++;
-    const sd = document.getElementById('h-score');
-    sd.textContent = G.score;
-    sd.classList.add('do-pulse');
-    setTimeout(()=>sd.classList.remove('do-pulse'),600);
+    score+=streak>=2?20:10; streak++;
+    fb.className='qfb ok';
+    document.getElementById('q-fbh').className='qfb-h ok';
+    document.getElementById('q-fbh').textContent=`✓ Correct!${streak>=2?' 🔥 Streak bonus!':''}`;
+    document.getElementById('q-fbb').innerHTML=q.exp;
+    activeStone.solved=true;
   } else {
-    G.streak = 0;
-    G.missed.push({q:s.passage, ans:s.opts[s.ans], cat:s.cat});
-    document.getElementById('ans-grid').classList.add('do-shake');
-    setTimeout(()=>document.getElementById('ans-grid').classList.remove('do-shake'),400);
+    streak=0;
+    fb.className='qfb bad';
+    document.getElementById('q-fbh').className='qfb-h bad';
+    document.getElementById('q-fbh').textContent='✗ Not quite!';
+    document.getElementById('q-fbb').innerHTML=q.exp;
   }
-  document.getElementById('h-streak').textContent = G.streak;
+  document.getElementById('h-score').textContent=score;
+  document.getElementById('h-streak').textContent=streak;
+  document.getElementById('q-next').style.display='block';
+  document.getElementById('h-prog').textContent=STONES.filter(s=>s.solved).length;
 
-  // Feedback
-  const sr = document.getElementById('story-result');
-  sr.className = `story-result ${ok?'show-ok':'show-bad'}`;
-  const bonus = ok && G.streak > 1;
-  sr.innerHTML = `
-    <p class="sr-story ${ok?'ok':'bad'}">
-      ${ok ? '✦ ' : '✧ '}${ok ? s.ok : s.bad}
-      ${bonus ? ' <span style="color:#d4a840;font-style:normal;font-size:.78rem">🔥 Streak bonus!</span>' : ''}
-    </p>
-    <div class="sr-exp">${s.exp}</div>`;
-
-  document.getElementById('cont-btn').style.display='block';
+  if(STONES.every(s=>s.solved))setTimeout(endGame,800);
 }
 
-function onContinue(){
-  G.scene++;
-  const atChapterBoundary = G.scene % 3 === 0;
-  if(G.scene >= SCENES.length){
-    endGame();
-  } else if(atChapterBoundary){
-    applyChapter(Math.floor(G.scene/3));
-    showChapterIntro(Math.floor(G.scene/3));
-  } else {
-    renderScene();
-  }
+function closeQuestion(){
+  document.getElementById('qmodal').classList.remove('open');
+  activeStone=null;
 }
 
-/* ═══════════════════════════════════════
-   ENDING
-═══════════════════════════════════════ */
+/* ═══════════════════ GAME LOOP ═══════════════════ */
+function gameLoop(now){
+  const dt=now-prevTime; prevTime=now;
+  const t=now/1000;
+  update(dt,t);
+  render(t);
+  requestAnimationFrame(gameLoop);
+}
+
+/* ═══════════════════ START / END / REPLAY ═══════════════════ */
+function beginGame(){
+  const nm=document.getElementById('pname').value.trim();
+  if(!nm){document.getElementById('nerr').style.display='block';return;}
+  document.getElementById('nerr').style.display='none';
+  playerName=nm;
+  score=0;streak=0;
+  STONES.forEach(s=>{s.solved=false;});
+  px=10*T+16;py=7*T+16;
+  MAP=buildMap();
+  gameRunning=true;
+  document.getElementById('h-score').textContent=0;
+  document.getElementById('h-streak').textContent=0;
+  document.getElementById('h-prog').textContent=0;
+  document.getElementById('start').style.display='none';
+  document.getElementById('end').classList.remove('show');
+  prevTime=performance.now();
+  requestAnimationFrame(gameLoop);
+}
+
 async function endGame(){
-  show('s-ending');
-  const tot = SCENES.length;
-
+  gameRunning=false;
+  const missed=QS.map((q,i)=>({q,stone:STONES[i]})).filter(({stone})=>!stone.solved);
   let sym,title,story;
-  if(G.score>=tot*18){sym='🏆';title='LEGENDARY';
-    story='The shadow creature dissolves into silence. The Academy blazes with returning light — every hall, every library, every story-room restored at once. The headmasters of a hundred years look down from the murals and, for a moment, seem to nod. You did it. Every device named, every passage restored. The Academy of Lost Words will remember you as the apprentice who saved its soul.';
-    confetti();}
-  else if(G.score>=tot*14){sym='⭐';title='HEROIC';
-    story='The creature retreats with a howl that shakes the Spire. Most of the Academy blazes back to life — hall after hall flooding with light, stories resuming mid-sentence. A few passages still flicker, but the worst is over. The Academy endures. You have done what countless others could not.';
-    confetti();}
-  else if(G.score>=tot*10){sym='⚔️';title='VICTORIOUS';
-    story='The shadow stumbles back. The Academy\'s stories flicker and then hold — not all at full strength, but holding. The silence has been broken. A few dark corners remain, but the great halls are bright again. Your quest is done. Review the passages that challenged you, and return stronger.';
-  }
-  else{sym='📖';title='APPRENTICE';
-    story='The creature fades, but slowly — and the Academy\'s recovery is slow as well. Some stories are still muffled, still waiting. The light has returned, but the magic needs more work. Study the devices you missed. Every great Word Weaver starts somewhere. Come back when you are ready.';}
+  if(score>=250){sym='🏆';title='LEGENDARY';story='The shadow creature dissolves into silence. The Academy blazes with returning light — every hall, every library, every story-room restored at once. You have done what countless others could not. The Academy of Lost Words will remember you forever.';confetti();}
+  else if(score>=180){sym='⭐';title='HEROIC';story='The creature retreats with a howl that shakes the Spire. Most of the Academy blazes back — stories resuming mid-sentence in halls long dark. A few passages still flicker, but the worst is over.';confetti();}
+  else if(score>=120){sym='⚔️';title='VICTORIOUS';story='The shadow stumbles back. The Academy\'s stories flicker and hold — not at full strength, but holding. The silence has been broken. Review the passages that challenged you and return stronger.';}
+  else{sym='📖';title='APPRENTICE';story='The creature fades slowly. Some stories are still muffled. The light has returned, but the magic needs more work. Study the missed devices and come back ready.';}
 
-  document.getElementById('end-sym').textContent  = sym;
-  document.getElementById('end-title').textContent = title;
-  document.getElementById('end-pts').textContent   = G.score;
-  document.getElementById('end-story').textContent = story;
-  document.getElementById('end-badge').textContent = `⚔️ Quest Complete — ${CHAPTERS[4].title}`;
+  document.getElementById('e-sym').textContent=sym;
+  document.getElementById('e-title').textContent=title;
+  document.getElementById('e-pts').textContent=score;
+  document.getElementById('e-story').textContent=story;
 
-  if(G.missed.length){
-    document.getElementById('missed-wrap').innerHTML=`
-      <div class="missed-head">📋 Review These Passages</div>
-      ${G.missed.map(m=>`
-        <div class="missed-item">
-          <div class="missed-q">"${m.q}"</div>
-          <div class="missed-t">${m.cat} → correct answer:</div>
-          <div class="missed-ans">${m.ans}</div>
-        </div>`).join('')}`;
-  }
-
-  await saveScore(G.name, G.score);
+  const mw=document.getElementById('e-missed');
+  if(missed.length){
+    mw.innerHTML=`<div class="mhead">📋 Review These</div>`+missed.map(({q,stone})=>`
+      <div class="mi"><div class="mi-q">"${q.pass.substring(0,65)}…"</div>
+      <div class="mi-t">${q.zone} →</div><div class="mi-a">${q.opts[q.a]}</div></div>`).join('');
+  } else {mw.innerHTML='';}
+  document.getElementById('end').classList.add('show');
+  await saveScore(playerName,score);
 }
 
 function replayGame(){
-  G.scene=0; G.score=0; G.streak=0; G.missed=[];
-  applyChapter(0);
-  document.getElementById('missed-wrap').innerHTML='';
-  show('s-intro');
+  document.getElementById('end').classList.remove('show');
+  document.getElementById('start').style.display='flex';
 }
 
-/* ═══════════════════════════════════════
-   LEADERBOARD
-═══════════════════════════════════════ */
+async function openLB(){
+  document.getElementById('lb').classList.add('show');
+  await loadLB();
+}
+function closeLB(){document.getElementById('lb').classList.remove('show');}
+
+/* ═══════════════════ LEADERBOARD ═══════════════════ */
 async function saveScore(name,pts){
-  if(!name) return;
   try{
     let prev=null;
-    try{ const r=await window.storage.get('lb2:'+name,true); if(r) prev=JSON.parse(r.value); }catch(e){}
-    if(!prev||pts>prev.score)
-      await window.storage.set('lb2:'+name,JSON.stringify({name,score:pts,ts:Date.now()}),true);
+    try{const r=await window.storage.get('alw:'+name,true);if(r)prev=JSON.parse(r.value);}catch(e){}
+    if(!prev||pts>prev.score)await window.storage.set('alw:'+name,JSON.stringify({name,score:pts,ts:Date.now()}),true);
   }catch(e){}
 }
-
 async function loadLB(){
   const el=document.getElementById('lb-list');
-  el.innerHTML='<div class="lb-empty">Loading…</div>';
+  el.innerHTML='<div class="lbempty">Loading…</div>';
   try{
-    const keys=await window.storage.list('lb2:',true);
-    if(!keys||!keys.keys||!keys.keys.length){
-      el.innerHTML='<div class="lb-empty">No scores yet — complete a quest to appear here!</div>'; return;
-    }
+    const keys=await window.storage.list('alw:',true);
+    if(!keys?.keys?.length){el.innerHTML='<div class="lbempty">No scores yet — complete a quest to appear here!</div>';return;}
     const rows=[];
-    for(const k of keys.keys){
-      try{ const r=await window.storage.get(k,true); if(r) rows.push(JSON.parse(r.value)); }catch(e){}
-    }
+    for(const k of keys.keys){try{const r=await window.storage.get(k,true);if(r)rows.push(JSON.parse(r.value));}catch(e){}}
     rows.sort((a,b)=>b.score-a.score);
     const medals=['🥇','🥈','🥉'];
     el.innerHTML=rows.map((r,i)=>{
       const cls=i===0?'r1':i===1?'r2':i===2?'r3':'';
-      const me=r.name===G.name;
-      return `<div class="lb-row ${cls} ${me?'me':''}">
-        <div class="lb-rank">${i+1}</div>
-        <div class="lb-medal">${medals[i]||'·'}</div>
-        <div class="lb-name">${r.name}${me?'<span class="you-tag">You</span>':''}</div>
-        <div style="text-align:right">
-          <div class="lb-score">${r.score}</div>
-          <span class="lb-pts-s">pts</span>
-        </div>
-      </div>`;
+      const me=r.name===playerName;
+      return `<div class="lbr ${cls} ${me?'me':''}">
+        <div class="lbrank">${i+1}</div>
+        <div class="lbmedal">${medals[i]||'·'}</div>
+        <div class="lbname">${r.name}${me?'<span class="ytag">You</span>':''}</div>
+        <div class="lbscore">${r.score}</div></div>`;
     }).join('');
-  }catch(e){
-    el.innerHTML='<div class="lb-empty">Leaderboard stores scores after each completed quest.</div>';
-  }
+  }catch(e){el.innerHTML='<div class="lbempty">Leaderboard saves after each completed quest.</div>';}
 }
 
-/* ═══════════════════════════════════════
-   CONFETTI
-═══════════════════════════════════════ */
+/* ═══════════════════ CONFETTI ═══════════════════ */
 function confetti(){
-  const cs=['#d4a840','#4faa60','#c84040','#9060d8','#3a8ec8','#f08030'];
-  for(let i=0;i<60;i++) setTimeout(()=>{
+  const cs=['#d4a840','#4aaa50','#c84040','#9060d8','#3a8ec8'];
+  for(let i=0;i<55;i++)setTimeout(()=>{
     const b=document.createElement('div');
-    b.className='confetti-bit';
     const sz=6+Math.random()*8;
-    b.style.cssText=`left:${Math.random()*100}vw;top:-8px;width:${sz}px;height:${sz}px;
-      background:${cs[~~(Math.random()*cs.length)]};border-radius:${Math.random()>.5?'50%':'2px'};
-      animation-duration:${1.8+Math.random()*2.2}s;`;
+    b.style.cssText=`position:fixed;left:${Math.random()*100}vw;top:-8px;width:${sz}px;height:${sz}px;background:${cs[~~(Math.random()*cs.length)]};border-radius:${Math.random()>.5?'50%':'2px'};pointer-events:none;z-index:9999;animation:fall ${1.8+Math.random()*2}s linear forwards`;
     document.body.appendChild(b);
-    setTimeout(()=>b.remove(),5000);
+    setTimeout(()=>b.remove(),4500);
   },i*30);
 }
+const cs=document.createElement('style');cs.textContent='@keyframes fall{0%{transform:translateY(0) rotate(0)opacity:1}100%{transform:translateY(105vh) rotate(720deg);opacity:0}}';document.head.appendChild(cs);
 
-/* ═══════════════════════════════════════
-   INIT
-═══════════════════════════════════════ */
-applyChapter(0);
-show('s-intro');
+/* ═══════════════════ INPUT ═══════════════════ */
+document.addEventListener('keydown',e=>{
+  if(['ArrowUp','w','W'].includes(e.key))keys.up=true;
+  if(['ArrowDown','s','S'].includes(e.key))keys.down=true;
+  if(['ArrowLeft','a','A'].includes(e.key))keys.left=true;
+  if(['ArrowRight','d','D'].includes(e.key))keys.right=true;
+  if(['e','E',' '].includes(e.key)){e.preventDefault();tryInteract();}
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
+});
+document.addEventListener('keyup',e=>{
+  if(['ArrowUp','w','W'].includes(e.key))keys.up=false;
+  if(['ArrowDown','s','S'].includes(e.key))keys.down=false;
+  if(['ArrowLeft','a','A'].includes(e.key))keys.left=false;
+  if(['ArrowRight','d','D'].includes(e.key))keys.right=false;
+});
+
+// D-pad touch buttons
+function makeDBtn(id,dir){
+  const el=document.getElementById(id);
+  el.addEventListener('pointerdown',e=>{e.preventDefault();touch[dir]=true;el.classList.add('on')});
+  el.addEventListener('pointerup',e=>{e.preventDefault();touch[dir]=false;el.classList.remove('on')});
+  el.addEventListener('pointerleave',e=>{touch[dir]=false;el.classList.remove('on')});
+}
+makeDBtn('d-up','up');makeDBtn('d-down','down');makeDBtn('d-left','left');makeDBtn('d-right','right');
+document.getElementById('dpad-e').addEventListener('pointerdown',e=>{e.preventDefault();tryInteract()});
 </script>
 </body>
 </html>
